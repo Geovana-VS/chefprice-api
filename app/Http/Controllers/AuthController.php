@@ -28,6 +28,7 @@ class AuthController extends Controller
             'password' => $validatedData['password'],
         ]);
 
+        $user->sendEmailVerificationNotification();
         
         $token = $user->createToken('api-token')->plainTextToken;
 
