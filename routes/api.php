@@ -42,5 +42,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('produtos', ProdutoController::class);
     Route::apiResource('receitas', ReceitaController::class);
     Route::apiResource('receita-tags', ReceitaTagController::class);
-    Route::apiResource('produto-historicos', ProdutoHistoricoController::class);
+    Route::apiResource('produto-historicos', ProdutoHistoricoController::class)->except(['update', 'destroy']);
 });

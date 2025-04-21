@@ -126,7 +126,7 @@ class ReceitaController extends Controller
 
     public function update(Request $request, Receita $receita)
     {
-        if ($receita->id_usuario !== Auth::id()) {
+        if ($receita->id_usuario != Auth::id()) {
             return response()->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
@@ -229,7 +229,7 @@ class ReceitaController extends Controller
     public function destroy(Receita $receita)
     {
 
-        if ($receita->id_usuario !== Auth::id()) {
+        if ($receita->id_usuario != Auth::id()) {
             return response()->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
