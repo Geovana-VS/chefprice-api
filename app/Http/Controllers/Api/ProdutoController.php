@@ -74,8 +74,7 @@ class ProdutoController extends Controller
 
     public function show(Produto $produto)
     {
-        // Load relationships needed for detailed view
-        return response()->json($produto->load(['categoria', 'imagens', 'historico', 'usuario'])); // Assuming usuario relationship exists
+        return response()->json($produto->load(['categoria', 'imagens', 'historico']));
     }
 
     public function update(Request $request, Produto $produto)
