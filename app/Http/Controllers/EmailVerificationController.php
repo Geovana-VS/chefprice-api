@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\AuthController;
 use App\Models\User;
 use App\Http\Requests\ApiEmailVerificationRequest;
+use Illuminate\Http\RedirectResponse;
 
 
 class EmailVerificationController extends Controller
@@ -22,24 +23,30 @@ class EmailVerificationController extends Controller
      * @param  \Illuminate\Foundation\Auth\EmailVerificationRequest  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function verify(ApiEmailVerificationRequest $request): JsonResponse
+    public function verify(ApiEmailVerificationRequest $request): RedirectResponse // <-- Change return type hint
     {
         $userId = $request->route('id');
-        $user = User::findOrFail($userId);
+        $user = User::findOrFail($userId); // Or Usuario::findOrFail($userId);
 
+        // Construct base URLs from config
+        $successUrl = config('app.frontend_url') . config('app.frontend_email_verify_success_path');
+        $failedUrl = config('app.frontend_url') . config('app.frontend_email_verify_failed_path');
+
+        // --- Manually perform the hash check ---
         if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
-            return response()->json(['message' => 'Hash incorreta de email.'], 403); // Forbidden
+            return redirect()->away($failedUrl . '?error=invalid_hash');
         }
+
         if ($user->hasVerifiedEmail()) {
-             return response()->json(['message' => 'Email já verificado.'], 200);
+
+            return redirect()->away($successUrl . '?status=already_verified');
         }
 
         if ($user->markEmailAsVerified()) {
-            // Optionally, fire the Verified event with the correct user object
-            // event(new \Illuminate\Auth\Events\Verified($user));
+            return redirect()->away($successUrl . '?status=success');
+        } else {
+            return redirect()->away($failedUrl . '?error=server_error');
         }
-
-        return response()->json(['message' => 'Email verificado com sucesso.'], 200);
     }
 
     /**
