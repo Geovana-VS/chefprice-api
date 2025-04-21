@@ -9,7 +9,7 @@ return new class extends Migration {
     {
         Schema::create('receitas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_usuario')->constrained('users')->onDelete('set null');
+            $table->foreignId('id_usuario')->constrained('users')->onDelete('no action');
             $table->string('titulo', 200);
             $table->text('descricao')->nullable();
             $table->string('rendimento', 100)->nullable();

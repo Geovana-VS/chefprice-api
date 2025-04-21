@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->string('codigo_barra', 100)->nullable();
             $table->string('nome', 200);
             $table->string('descricao', 500)->nullable();
-            $table->foreignId('id_categoria')->constrained('categorias')->onDelete('restrict');
+            $table->foreignId('id_categoria')->constrained('categorias')->onDelete('no action');
             $table->string('unidade_medida', 50)->nullable();
 
             $table->timestamps();

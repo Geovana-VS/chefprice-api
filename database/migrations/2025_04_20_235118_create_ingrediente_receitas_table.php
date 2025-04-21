@@ -11,7 +11,7 @@ return new class extends Migration {
         Schema::create('ingrediente_receitas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_receita')->constrained('receitas')->onDelete('cascade');
-            $table->foreignId('id_produto')->constrained('produtos')->onDelete('restrict');
+            $table->foreignId('id_produto')->constrained('produtos')->onDelete('no action');
             $table->decimal('quantidade', 10, 3);
             $table->string('unidade', 50);
             $table->string('observacoes', 255)->nullable();

@@ -8,8 +8,8 @@ return new class extends Migration {
     {
         Schema::create('imagens', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_usuario')->constrained('users')->onDelete('set null');
-            $table->foreignId('id_tipo_imagem')->constrained('tipo_imagens')->onDelete('restrict');
+            $table->foreignId('id_usuario')->constrained('users')->onDelete('no action');
+            $table->foreignId('id_tipo_imagem')->constrained('tipo_imagens')->onDelete('no action');
             $table->binary('dados_imagem');
             $table->string('nome_arquivo', 255)->nullable();
             $table->string('nome_arquivo_storage', 255)->nullable();
