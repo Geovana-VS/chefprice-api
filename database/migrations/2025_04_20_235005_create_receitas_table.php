@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->text('descricao')->nullable();
             $table->string('rendimento', 100)->nullable();
             $table->string('tempo_preparo', 100)->nullable();
-            $table->timestamps();
+            $table->timestamps(3);
         });
     }
 

@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->foreignId('id_categoria')->constrained('categorias')->onDelete('no action');
             $table->string('unidade_medida', 50)->nullable();
 
-            $table->timestamps();
+            $table->timestamps(3);
         });
     }
 
