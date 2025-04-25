@@ -8,39 +8,48 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
     /**
-     * Handle user registration.
+     * Registro de um novo usuário.
      */
     public function register(Request $request)
     {
-        $validatedData = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:200'],
             'email' => ['required', 'string', 'email', 'max:100', 'unique:users,email'],
             'password' => ['required', 'string', 'confirmed', Password::min(8)],
         ]);
 
-        $user = User::create([ 
-            'name' => $validatedData['name'], 
-            'email' => $validatedData['email'],
-            'password' => $validatedData['password'],
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Erro de validação.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'is_admin' => false,
         ]);
 
         $user->sendEmailVerificationNotification();
-        
+
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
-            'message' => 'User registered successfully.',
+            'message' => 'Usuário registrado com sucesso.',
             'user' => $user,
-            'token' => $token // Send token back
+            'token' => $token
         ], 201); // 201 Created status
     }
 
     /**
-     * Handle user login.
+     * Login do usuário.
      */
     public function login(Request $request)
     {
@@ -68,16 +77,16 @@ class AuthController extends Controller
     }
 
     /**
-     * Handle user logout.
+     * Logout do usuário.
      */
     public function logout(Request $request)
     {
-        // Get the authenticated user via the token
+        // Pega o usuário autenticado
         $user = $request->user();
 
-        // Revoke the token that was used to authenticate the current request
+        // Revoca o o token atual
         $user->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Logged out successfully.']);
+        return response()->json(['message' => 'Usuário deslogado com sucesso.']);
     }
 }
