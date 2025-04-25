@@ -21,6 +21,14 @@ class Receita extends Model
         'descricao',
         'rendimento',
         'tempo_preparo',
+        'is_public',
+    ];
+
+    protected $casts = [
+        'id_usuario' => 'integer',
+        'is_public' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // Relationship: Recipe belongs to a User (Creator)

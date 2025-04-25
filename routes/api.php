@@ -38,6 +38,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('produtos', ProdutoController::class)->only(['index', 'show']);
     Route::apiResource('receita-tags', ReceitaTagController::class)->only(['index', 'show']);;
     Route::apiResource('receitas', ReceitaController::class);
+    Route::post('/receitas/{receita}/clone', [ReceitaController::class, 'clone'])->name('receitas.clone');
+
 
     // Produto Historicos: Everyone can view/create, only admins can update/delete
     Route::apiResource('produto-historicos', ProdutoHistoricoController::class)->except(['update', 'destroy']);
