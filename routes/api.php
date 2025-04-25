@@ -28,19 +28,28 @@ Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 've
 // --- Rotas Autenticadas ---
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
     Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
         ->middleware(['throttle:6,1'])
         ->name('verification.send');
 
     // --- API Resource Routes ---
-    Route::apiResource('categorias', CategoriaController::class);
     Route::apiResource('tipo-imagens', TipoImagemController::class);
     Route::apiResource('imagens', ImagemController::class);
-    Route::apiResource('produtos', ProdutoController::class);
+    Route::apiResource('produtos', ProdutoController::class)->only(['index', 'show']);
+    Route::apiResource('receita-tags', ReceitaTagController::class)->only(['index', 'show']);;
     Route::apiResource('receitas', ReceitaController::class);
-    Route::apiResource('receita-tags', ReceitaTagController::class);
+
+    // Produto Historicos: Everyone can view/create, only admins can update/delete
     Route::apiResource('produto-historicos', ProdutoHistoricoController::class)->except(['update', 'destroy']);
-});
+
+    // --- Admin Routes ---
+    Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
+
+        Route::apiResource('produtos', ProdutoController::class);
+        Route::apiResource('categorias', CategoriaController::class);
+        Route::apiResource('receita-tags', ReceitaTagController::class);
+        Route::put('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'update'])->name('produto-historicos.update');
+        Route::delete('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'destroy'])->name('produto-historicos.destroy');
+    }); // End admin middleware group
+
+}); // End auth:sanctum group
