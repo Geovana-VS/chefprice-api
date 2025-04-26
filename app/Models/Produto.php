@@ -21,8 +21,16 @@ class Produto extends Model
         'codigo_barra',
         'nome',
         'id_categoria',
+        'quantidade',
         'unidade_medida',
         'descricao',
+    ];
+
+    protected $casts = [
+        'id_categoria' => 'integer',
+        'quantidade' => 'decimal:3',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function categoria(): BelongsTo

@@ -4,11 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Produto;
+use App\Models\Categoria;
+use App\Models\Imagem;
+use App\Models\TipoImagem;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 class ProdutoController extends Controller
 {
@@ -142,5 +150,114 @@ class ProdutoController extends Controller
         });
 
         return response()->json(null, Response::HTTP_NO_CONTENT); // 204 No Content
+    }
+
+    public function storeOrUpdateOpenFoodFacts(array $productData)
+    {
+        $categoriaId = null;
+        $categoriaNome = null;
+
+        if (isset($productData['categories_tags']) && is_array($productData['categories_tags'])) {
+            foreach ($productData['categories_tags'] as $tag) {
+                if (str_starts_with($tag, 'pt:')) {
+                    $categoriaNome = Str::ucfirst(str_replace('-', ' ', substr($tag, 3)));
+                    break;
+                }
+            }
+        }
+
+        if (!$categoriaNome && !empty($productData['generic_name_pt'])) {
+            $categoriaNome = Str::ucfirst($productData['generic_name_pt']);
+        }
+
+        if (!$categoriaNome) {
+            $categoriaNome = 'Indefinida';
+        }
+
+        try {
+            $categoria = Categoria::firstOrCreate(
+                ['nome' => $categoriaNome]
+            );
+            $categoriaId = $categoria->id;
+        } catch (Exception $e) {
+            Log::error("Erro ao encontrar ou criar a categoria '{$categoriaNome}': " . $e->getMessage());
+        }
+
+        $descricao = $productData['generic_name_pt'] ?? null;
+        if (!empty($productData['brands'])) {
+            $descricao = ($descricao ? $descricao . ' - ' : '') . 'Marca: ' . $productData['brands'];
+        }
+
+        $unidadeMedida = null;
+        $quantidadeNumerica = null;
+        if (isset($productData['quantity'])) {
+            if (preg_match('/^([0-9.]+)\s*([a-zA-Zμ]*)$/', trim($productData['quantity']), $matches)) {
+                $quantidadeNumerica = (float) $matches[1];
+                $unidadeMedida = !empty($matches[2]) ? strtolower($matches[2]) : null;
+            } else {
+                Log::warning("Não foi possivel extrair e parsear o valor de : " . $productData['quantity']);
+            }
+        }
+
+        $produtoInput = [
+            'nome' => $productData['product_name_pt'] ?? 'Produto Sem Nome',
+            'id_categoria' => $categoriaId,
+            'codigo_barra' => $productData['code'],
+            'unidade_medida' => $unidadeMedida,
+            'quantidade' => $quantidadeNumerica,
+            'descricao' => $descricao,
+        ];
+
+        $produto = null;
+        try {
+            DB::transaction(function () use ($produtoInput, $productData, &$produto) {
+
+                $produto = Produto::updateOrCreate(
+                    ['codigo_barra' => $produtoInput['codigo_barra']],
+                    $produtoInput
+                );
+
+                $imageUrl = $productData['image_front_url'] ?? $productData['image_url'] ?? null;
+
+                if ($imageUrl && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+                    try {
+                        $tipoImagem = TipoImagem::firstOrCreate(['nome' => 'Produto']); //
+
+                        $imagem = Imagem::firstOrCreate([
+                            'id_usuario' => Auth::id(),
+                            'id_tipo_imagem' => $tipoImagem->id,
+                            'url' => $imageUrl,
+                            'nome_arquivo' => $produtoInput['nome'],
+                            'mime_type' => Http::get($imageUrl)->header('Content-Type'),
+                            'is_publico' => true,
+                        ]);
+
+                        $produto->imagens()->syncWithoutDetaching([$imagem->id]);
+                    } catch (Exception $e) {
+                        Log::error("Erro processando a imagem {$imageUrl}: " . $e->getMessage());
+                    }
+                }
+            });
+        } catch (Exception $e) {
+            Log::error("Erro armazenando o produto de OpenFoodFacts (Código de barras: {$productData['code']}): " . $e->getMessage());
+            return response()->json(['message' => 'Erro ao salvar o produto no banco de dados.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if ($produto === null) {
+            return response()->json(['message' => 'Produto não foi salvo.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json($produto->load(['categoria', 'imagens']), Response::HTTP_OK);
+    }
+
+    public function handleOpenFoodFactsWebhook(Request $request)
+    {
+        $productData = $request->input('product');
+
+        if (!$productData || !isset($productData['code'])) {
+            return response()->json(['message' => 'Dados inválidos recebidos.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->storeOrUpdateOpenFoodFacts($productData);
     }
 }

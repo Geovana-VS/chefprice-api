@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProdutoController;
 use App\Http\Controllers\Api\ProdutoHistoricoController;
 use App\Http\Controllers\Api\ReceitaController;
 use App\Http\Controllers\Api\ReceitaTagController;
+use App\Http\Controllers\Api\OpenFoodFactsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +53,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('receita-tags', ReceitaTagController::class);
         Route::put('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'update'])->name('produto-historicos.update');
         Route::delete('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'destroy'])->name('produto-historicos.destroy');
+        Route::prefix('openfoodfacts')->name('openfoodfacts.')->group(function () {
+            Route::get('/product/{barcode}', [OpenFoodFactsController::class, 'getProductByBarcode'])->name('product.barcode');
+            Route::get('/search', [OpenFoodFactsController::class, 'searchProducts'])->name('search');
+        });
     }); // End admin middleware group
 
 }); // End auth:sanctum group
