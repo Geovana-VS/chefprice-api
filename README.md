@@ -57,7 +57,7 @@ Siga os passos abaixo para configurar o ambiente de desenvolvimento:
     * Certifique-se de que seu banco de dados (`DB_DATABASE`) foi criado no SQL Server.
     * Execute as migrações para criar as tabelas:
         ```bash
-        php artisan migrate
+        php artisan migrate --seed
         ```
 
 6.  **Criar Link Simbólico do Storage:** (Necessário para acessar imagens salvas no disco `public`)

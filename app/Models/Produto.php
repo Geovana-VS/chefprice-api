@@ -47,9 +47,15 @@ class Produto extends Model
         return $this->hasMany(IngredienteReceita::class, 'id_produto');
     }
 
-    // Relationship: Product has many History records
     public function historico(): HasMany
     {
         return $this->hasMany(ProdutoHistorico::class, 'id_produto');
+    }
+
+        public function listasCompra(): BelongsToMany
+    {
+        return $this->belongsToMany(ListaCompra::class, 'lista_compra_produtos', 'id_produto', 'id_lista_compra')
+                    ->withPivot(['quantidade', 'unidade_medida', 'observacao', 'comprado', 'created_at', 'updated_at'])
+                    ->withTimestamps();
     }
 }
