@@ -146,8 +146,7 @@ class ReceitaController extends Controller
     {
         try {
             $receita = Receita::with([
-                'user:id,name',
-                'categoria:id,nome',
+                'usuario:id,name',
                 'ingredientes',
                 'etapas',
                 'tags:id,nome',
@@ -212,6 +211,7 @@ class ReceitaController extends Controller
             'ingredientes.*.quantidade' => 'required|numeric',
             'ingredientes.*.unidade' => 'required|string|max:50',
             'ingredientes.*.observacoes' => 'nullable|string|max:255',
+            'is_public' => 'sometimes|boolean',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -231,6 +231,7 @@ class ReceitaController extends Controller
             if (array_key_exists('descricao', $validatedData)) $receitaData['descricao'] = $validatedData['descricao'];
             if (array_key_exists('rendimento', $validatedData)) $receitaData['rendimento'] = $validatedData['rendimento'];
             if (array_key_exists('tempo_preparo', $validatedData)) $receitaData['tempo_preparo'] = $validatedData['tempo_preparo'];
+            if (array_key_exists('is_public', $validatedData)) $receitaData['is_public'] = $validatedData['is_public'];
 
             if (!empty($receitaData)) {
                 $receita->update($receitaData);
