@@ -219,27 +219,27 @@ class ListaCompraController extends Controller
         $user = Auth::user();
 
         $messages = [
-            'produtos_comprados.required' => 'A lista de produtos comprados é obrigatória.',
-            'produtos_comprados.array' => 'Os produtos comprados devem ser um array.',
-            'produtos_comprados.*.id_produto.required' => 'O ID do produto é obrigatório para cada item comprado.',
-            'produtos_comprados.*.id_produto.exists' => 'Um ou mais IDs de produto comprados são inválidos.',
-            'produtos_comprados.*.quantidade.required' => 'A quantidade comprada é obrigatória.',
-            'produtos_comprados.*.quantidade.numeric' => 'A quantidade comprada deve ser um número.',
-            'produtos_comprados.*.quantidade.min' => 'A quantidade comprada deve ser maior que zero.',
-            'produtos_comprados.*.preco_unitario.required' => 'O preço unitário é obrigatório para cada item comprado.',
-            'produtos_comprados.*.preco_unitario.numeric' => 'O preço unitário deve ser um número.',
-            'produtos_comprados.*.preco_unitario.min' => 'O preço unitário deve ser maior que zero.',
-            'produtos_comprados.*.desconto.numeric' => 'O desconto deve ser um número.',
-            'data_compra_efetiva.date_format' => 'A data da compra deve estar no formato AAAA-MM-DD.'
+            'id_lista_compra.required' => 'O ID da lista de compras é obrigatório.',
+            'id_lista_compra.exists' => 'A lista de compras especificada não existe.',
+            'data_compra_efetiva.date_format' => 'A data da compra deve estar no formato AAAA-MM-DD.',
+            'detalhes_produtos.required' => 'Os detalhes dos produtos comprados são obrigatórios.',
+            'detalhes_produtos.array' => 'Os detalhes dos produtos devem ser um array.',
+            'detalhes_produtos.*.id_produto.required' => 'O ID do produto é obrigatório para cada item.',
+            'detalhes_produtos.*.id_produto.integer' => 'O ID do produto deve ser um número inteiro.',
+            'detalhes_produtos.*.preco_unitario.required' => 'O preço unitário é obrigatório para cada item.',
+            'detalhes_produtos.*.preco_unitario.numeric' => 'O preço unitário deve ser numérico.',
+            'detalhes_produtos.*.preco_unitario.min' => 'O preço unitário deve ser no mínimo 0.01.',
+            'detalhes_produtos.*.desconto.numeric' => 'O desconto deve ser numérico.',
+            'detalhes_produtos.*.desconto.min' => 'O desconto deve ser no mínimo 0.',
         ];
 
         $rules = [
+            'id_lista_compra' => 'required|integer|exists:listas_compras,id',
             'data_compra_efetiva' => 'sometimes|date_format:Y-m-d',
-            'produtos_comprados' => 'required|array|min:1',
-            'produtos_comprados.*.id_produto' => 'required|integer|exists:produtos,id',
-            'produtos_comprados.*.quantidade' => 'required|numeric|min:0.001',
-            'produtos_comprados.*.preco_unitario' => 'required|numeric|min:0.01',
-            'produtos_comprados.*.desconto' => 'nullable|numeric|min:0',
+            'detalhes_produtos' => 'required|array|min:1',
+            'detalhes_produtos.*.id_produto' => 'required|integer|exists:produtos,id', // Basic existence check
+            'detalhes_produtos.*.preco_unitario' => 'required|numeric|min:0.01',
+            'detalhes_produtos.*.desconto' => 'nullable|numeric|min:0',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -249,30 +249,84 @@ class ListaCompraController extends Controller
         }
 
         $validatedData = $validator->validated();
-        $produtosRegistrados = $validatedData['produtos_comprados'];
+        $listaCompraId = $validatedData['id_lista_compra'];
         $dataCompra = $validatedData['data_compra_efetiva'] ?? now()->format('Y-m-d');
+        $detalhesProdutosInput = $validatedData['detalhes_produtos'];
+
+        $listaCompra = ListaCompra::with('produtos')->findOrFail($listaCompraId); // Eager load products
+
+        if ($listaCompra->id_usuario !== $user->id) {
+            return response()->json(['message' => 'Acesso não autorizado a esta lista de compras.'], Response::HTTP_FORBIDDEN);
+        }
 
         $historicosCriados = [];
+        $errosProcessamento = [];
 
-        DB::transaction(function () use ($user, $produtosRegistrados, $dataCompra, &$historicosCriados) {
-            foreach ($produtosRegistrados as $itemComprado) {
-                $precoTotal = ($itemComprado['quantidade'] * $itemComprado['preco_unitario']) - ($itemComprado['desconto'] ?? 0);
+        // Create a map of products in the shopping list for efficient lookup and to get their quantities
+        $produtosNaListaMap = [];
+        foreach ($listaCompra->produtos as $produtoNaLista) {
+            $produtosNaListaMap[$produtoNaLista->id] = [
+                'quantidade' => $produtoNaLista->pivot->quantidade, // Get quantity from pivot
+                'unidade_medida' => $produtoNaLista->pivot->unidade_medida
+            ];
+        }
+
+        DB::transaction(function () use (
+            $user,
+            $produtosNaListaMap,
+            $detalhesProdutosInput,
+            $dataCompra,
+            &$historicosCriados,
+            &$errosProcessamento
+        ) {
+            foreach ($detalhesProdutosInput as $itemDetalhe) {
+                $produtoId = $itemDetalhe['id_produto'];
+
+                if (!isset($produtosNaListaMap[$produtoId])) {
+                    $errosProcessamento[] = "Produto com ID {$produtoId} não faz parte da lista de compras especificada ou já foi processado.";
+                    continue; // Skip this item
+                }
+
+                $infoProdutoLista = $produtosNaListaMap[$produtoId];
+                $quantidadeDaLista = $infoProdutoLista['quantidade'];
+
+                if ($quantidadeDaLista <= 0) {
+                    $errosProcessamento[] = "Produto com ID {$produtoId} na lista de compras possui quantidade zero ou inválida e não será registrado no histórico.";
+                    continue;
+                }
+
+                $precoUnitario = $itemDetalhe['preco_unitario'];
+                $desconto = $itemDetalhe['desconto'] ?? 0;
+                $precoTotal = ($quantidadeDaLista * $precoUnitario) - $desconto;
+
                 $historico = ProdutoHistorico::create([
                     'id_usuario' => $user->id,
-                    'id_produto' => $itemComprado['id_produto'],
-                    'preco_unitario' => $itemComprado['preco_unitario'],
-                    'quantidade' => $itemComprado['quantidade'],
+                    'id_produto' => $produtoId,
+                    'preco_unitario' => $precoUnitario,
+                    'quantidade' => $quantidadeDaLista, // Use quantity from the shopping list's pivot data
                     'preco_total' => $precoTotal,
                     'data_compra' => $dataCompra,
-                    'desconto' => $itemComprado['desconto'] ?? null,
+                    'desconto' => $desconto,
+                    // 'id_lista_compra_origem' => $listaCompra->id, // Optional: if you add this column to ProdutoHistorico
                 ]);
                 $historicosCriados[] = $historico;
             }
         });
 
+        if (!empty($errosProcessamento)) {
+            // Decide on the response: partial success or failure if crucial items failed
+            $responseStatus = count($historicosCriados) > 0 ? Response::HTTP_ACCEPTED : Response::HTTP_BAD_REQUEST;
+            return response()->json([
+                'message' => 'Evento de compra processado com observações.',
+                'erros' => $errosProcessamento,
+                'produtos_historicos_criados' => $historicosCriados
+            ], $responseStatus);
+        }
+
         return response()->json([
-            'message' => 'Compra registrada com sucesso e histórico de produtos criado.',
-            'produtos_historicos' => $historicosCriados
+            'message' => 'Histórico de compra registrado com sucesso para os produtos da lista.',
+            'lista_compra_id' => $listaCompra->id,
+            'produtos_historicos_criados' => $historicosCriados
         ], Response::HTTP_CREATED);
     }
 }
