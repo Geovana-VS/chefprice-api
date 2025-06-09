@@ -15,5 +15,20 @@ class DatabaseSeeder extends Seeder
     {
         $ListaCompraStatusSeeder = new ListaCompraStatusSeeder();
         $ListaCompraStatusSeeder->run();
+
+        $TipoImagemSeeder = new TipoImagemSeeder();
+        $TipoImagemSeeder->run();
+
+        $CategoriasSeeder = new CategoriasSeeder();
+        $CategoriasSeeder->run();
+
+        $ProdutosSeeder = new ProdutosSeeder();
+        $ProdutosSeeder->run();
+
+        $UsuariosSeeder = new UsuariosSeeder();
+        $UsuariosSeeder->run();
+
+        $ReceitasTagsSeeder = new ReceitasTagsSeeder();
+        $ReceitasTagsSeeder->run();
     }
 }

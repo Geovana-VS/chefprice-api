@@ -13,6 +13,9 @@ class ListaCompraStatusSeeder extends Seeder
      */
     public function run(): void
     {
+        if (DB::table('lista_compra_status')->count() > 0) {
+            return;
+        }
         $status = [
             ['nome' => 'Ativa', 'descricao' => 'Lista de compras em aberto e ativa.'],
             ['nome' => 'Arquivada', 'descricao' => 'Lista de compras que não está mais ativa mas mantida para referência.'],
