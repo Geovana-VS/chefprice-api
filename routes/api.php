@@ -38,8 +38,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // --- API Resource Routes ---
     Route::apiResource('tipo-imagens', TipoImagemController::class)->only(['index', 'show']);
-    Route::apiResource('imagens', ImagemController::class);
-    Route::get('/imagens/{imagem}/view', [ImagemController::class, 'view'])->name('imagens.view');
+    Route::apiResource('imagens', ImagemController::class)->parameters([
+        'imagens' => 'idImagem'
+    ]);
+    Route::get('/imagens/{idImagem}/view', [ImagemController::class, 'view'])->name('imagens.view');
     Route::apiResource('produtos', ProdutoController::class)->only(['index', 'show']);
     Route::apiResource('receita-tags', ReceitaTagController::class)->only(['index', 'show']);;
     Route::apiResource('receitas', ReceitaController::class);

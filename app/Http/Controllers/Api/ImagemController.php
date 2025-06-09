@@ -12,9 +12,17 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
+use App\Models\TipoImagem;
+use App\Services\ReceiptProcessingService;
 
 class ImagemController extends Controller
 {
+    protected ReceiptProcessingService $receiptService;
+    public function __construct(ReceiptProcessingService $receiptService)
+    {
+        $this->receiptService = $receiptService;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -46,9 +54,8 @@ class ImagemController extends Controller
             'produtos.array' => 'Os produtos devem ser um array de IDs.',
             'produtos.*.integer' => 'Cada ID de produto deve ser um número inteiro.',
             'produtos.*.exists' => 'Um ou mais produtos selecionados são inválidos.',
-            'receitas.array' => 'As receitas devem ser um array de IDs.',
-            'receitas.*.integer' => 'Cada ID de receita deve ser um número inteiro.',
-            'receitas.*.exists' => 'Uma ou mais receitas selecionadas são inválidas.',
+            'receitas.integer' => 'O ID de receita deve ser um número inteiro.',
+            'receitas.exists' => 'Uma ou mais receitas selecionadas são inválidas.',
         ];
 
         $rules = [
@@ -58,8 +65,7 @@ class ImagemController extends Controller
             'image_file' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB max
             'produtos' => 'nullable|array',
             'produtos.*' => 'integer|exists:produtos,id',
-            'receitas' => 'nullable|array',
-            'receitas.*' => 'integer|exists:receitas,id',
+            'receitas' => 'nullable|integer|exists:receitas,id',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -70,6 +76,7 @@ class ImagemController extends Controller
 
         $validatedData = $validator->validated();
         $imagem = null;
+        $receiptProcessingResult = null;
 
         if ($request->hasFile('image_file') && $request->file('image_file')->isValid()) {
             $file = $request->file('image_file');
@@ -94,24 +101,53 @@ class ImagemController extends Controller
                 'is_publico' => $validatedData['is_publico'] ?? false,
                 'url' => $publicUrl,
             ];
-
+            $tipoImagemModel = TipoImagem::find($validatedData['id_tipo_imagem']);
+            $tipoNomeLower = strtolower($tipoImagemModel->nome);
             // Use transaction to ensure database operations succeed together
-            DB::transaction(function () use ($imagemData, $validatedData, &$imagem) {
-                $imagem = Imagem::create($imagemData);
+            $transaction = DB::transaction(
+                function () use ($imagemData, $validatedData, &$imagem, $tipoImagemModel, $tipoNomeLower) {
+                    $imagem = Imagem::create($imagemData);
 
-                // Attach Relationships
-                if (!empty($validatedData['produtos'])) {
-                    $imagem->produtos()->attach($validatedData['produtos']);
+                    // Attach Relationships
+                    if (!empty($validatedData['produtos'])) {
+                        $imagem->produtos()->attach($validatedData['produtos']);
+                    }
+                    if (!empty($validatedData['receitas'])) {
+                        $imagem->receitas()->attach($validatedData['receitas']);
+                    }
+
+                    // --- Receipt Processing Logic ---
+
+                    if ($tipoImagemModel) {
+                        $recipeIdForReceipt = null;
+
+                        if ($tipoNomeLower === 'cupom fiscal genérico' || $tipoNomeLower === 'cupom fiscal receita') {
+                            if ($tipoNomeLower === 'cupom fiscal receita') {
+                                if (!empty($validatedData['receitas'])) {
+                                    $receiptProcessingResult = $this->receiptService->processReceipt($imagem, Auth::id(), $validatedData['receitas']);
+                                } else {
+                                    return response()->json(['message' => 'Para cupons fiscais do tipo "Cupom Fiscal Receita", deve haver exatamente uma receita associada.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+                                }
+                            } else if ($tipoNomeLower === 'cupom fiscal genérico') {
+                                $receiptProcessingResult = $this->receiptService->processReceipt($imagem, Auth::id());
+                            }
+                        }
+                    }
+                    return $receiptProcessingResult;
                 }
-                if (!empty($validatedData['receitas'])) {
-                    $imagem->receitas()->attach($validatedData['receitas']);
-                }
-            });
+            ); // End transaction
 
             if ($imagem === null) {
                 return response()->json(['message' => 'Imagem não criada.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
-            return response()->json($imagem->load(['usuario', 'tipoImagem', 'produtos', 'receitas']), Response::HTTP_CREATED);
+            Log::info($transaction);
+            if ($tipoNomeLower === 'cupom fiscal receita' && $transaction['success'] != true) {
+                return response()->json(['message' => 'Imagem criada, mas não foi possível processar o recibo.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+            return response()->json([
+                'imagem' => $imagem->load(['usuario', 'tipoImagem']),
+                'receiptProcessingResult' => $transaction,
+            ], Response::HTTP_CREATED);
         } else {
             return response()->json(['message' => 'Arquivo de imagem inválido ou não enviado.'], Response::HTTP_BAD_REQUEST);
         }
@@ -160,7 +196,6 @@ class ImagemController extends Controller
             ];
 
             return response()->file($path, $headers);
-
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Imagem não encontrada.'], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
@@ -247,7 +282,7 @@ class ImagemController extends Controller
      * @param  \App\Models\Imagem  $imagem
      * @return \Illuminate\Http\JsonResponse
      */
-   public function destroy(int $idImagem)
+    public function destroy(int $idImagem)
     {
         try {
             $imagem = Imagem::findOrFail($idImagem);
@@ -291,7 +326,6 @@ class ImagemController extends Controller
                 Log::error("Falha ao deletar o registro da Imagem ID {$idImagem} do banco de dados.");
                 return response()->json(['message' => 'A imagem não pôde ser deletada do banco de dados.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
-
         } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Imagem com ID ' . $idImagem . ' não encontrada.'], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
