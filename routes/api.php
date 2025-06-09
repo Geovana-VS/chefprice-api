@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ReceitaTagController;
 use App\Http\Controllers\Api\OpenFoodFactsController;
 use App\Http\Controllers\Api\ListaCompraStatusController;
 use App\Http\Controllers\Api\ListaCompraController;
+use App\Http\Controllers\Api\ColecaoReceitaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +46,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/receitas/{receita}/clone', [ReceitaController::class, 'clone'])->name('receitas.clone');
     Route::apiResource('categorias', CategoriaController::class)->only(['index', 'show']);
 
+
+    // --- Coleção de Receitas Routes ---
+    Route::apiResource('colecao-receitas', ColecaoReceitaController::class);
+    Route::post('colecao-receitas/{idColecao}/receitas/{idReceita}', [ColecaoReceitaController::class, 'addReceitaToColecao'])
+        ->name('colecao-receitas.addReceita');
+    Route::delete('colecao-receitas/{idColecao}/receitas/{idReceita}', [ColecaoReceitaController::class, 'removeReceitaFromColecao'])
+        ->name('colecao-receitas.removeReceita');
 
     // Produto Historicos: Everyone can view/create, only admins can update/delete
     Route::apiResource('produto-historicos', ProdutoHistoricoController::class)->except(['update', 'destroy']);
