@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ListaCompra;
 use App\Models\ListaCompraStatus;
+use App\Models\ListaCompraProduto;
 use App\Models\ProdutoHistorico;
+use App\Models\Produto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Response;
+
+
 
 class ListaCompraController extends Controller
 {
@@ -21,9 +25,7 @@ class ListaCompraController extends Controller
     {
         $user = Auth::user();
         $query = ListaCompra::where('id_usuario', $user->id)
-            ->with(['status:id,nome', 'produtos' => function ($query) {
-                $query->with('categoria:id,nome');
-            }]);
+            ->with(['status:id,nome', 'itens.produto.categoria:id,nome']);
 
         if ($request->has('id_lista_compra_status')) {
             $query->where('id_lista_compra_status', $request->input('id_lista_compra_status'));
@@ -45,7 +47,8 @@ class ListaCompraController extends Controller
         $statusAtiva = ListaCompraStatus::where('nome', 'Ativa')->first();
 
         if (!$statusAtiva && !$request->has('id_lista_compra_status')) {
-            return response()->json(['message' => 'Status padrão "Ativa" não encontrado e nenhum status fornecido.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['message' => 'Status padrão "Ativa" não encontrado e nenhum status fornecido.'],
+            Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         $messages = [
@@ -84,24 +87,25 @@ class ListaCompraController extends Controller
             ]);
 
             if (!empty($validatedData['produtos'])) {
-                $produtosParaSincronizar = [];
                 foreach ($validatedData['produtos'] as $produtoData) {
-                    $produtosParaSincronizar[$produtoData['id_produto']] = [
-                        'quantidade' => $produtoData['quantidade'],
-                        'unidade_medida' => $produtoData['unidade_medida'] ?? null,
-                        'observacao' => $produtoData['observacao'] ?? null,
-                        'comprado' => $produtoData['comprado'] ?? false,
-                    ];
+                    $listaCompra->itens()->create($produtoData);
                 }
-                $listaCompra->produtos()->sync($produtosParaSincronizar);
             }
         });
 
         if ($listaCompra === null) {
-            return response()->json(['message' => 'Erro ao criar lista de compras.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['message' => 'Erro ao criar lista de compras.'], 
+            Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        return response()->json($listaCompra->load(['status:id,nome', 'produtos']), Response::HTTP_CREATED);
+        return response()->json(
+            $listaCompra->load(
+                ['status:id,nome', 'itens.produto']
+            ),
+            Response::HTTP_CREATED
+        );
+        // return response()->json($listaCompra->load(['status:id,nome', 'produtos']),
+        // Response::HTTP_CREATED);
     }
 
     /**
@@ -109,18 +113,12 @@ class ListaCompraController extends Controller
      */
     public function show(int $listaCompraId)
     {
-        $listaCompra = ListaCompra::findOrFail($listaCompraId);
-        if (!$listaCompra) {
-            return response()->json(['message' => 'Lista de compras não encontrada.'], Response::HTTP_NOT_FOUND);
-        }
-
         $user = Auth::user();
-        if ($listaCompra->id_usuario !== $user->id) {
-            return response()->json(['message' => 'Acesso não autorizado.'], Response::HTTP_FORBIDDEN);
-        }
-        return response()->json($listaCompra->load(['status:id,nome', 'usuario:id,name', 'produtos' => function ($query) {
-            $query->with('categoria:id,nome');
-        }]));
+        $listaCompra = ListaCompra::with(['status:id,nome', 'usuario:id,name', 'itens.produto.categoria:id,nome'])
+            ->where('id_usuario', $user->id)
+            ->findOrFail($listaCompraId);
+
+        return response()->json($listaCompra);
     }
 
     /**
@@ -142,7 +140,7 @@ class ListaCompraController extends Controller
         $rules = [
             'nome_lista' => 'sometimes|required|string|max:255',
             'descricao' => 'sometimes|nullable|string',
-            'id_lista_compra_status' => 'sometimes|required|integer|exists:lista_compra_status,id',
+            'id_lista_compra_status' => 'sometimes|integer|exists:lista_compra_status,id',
             'produtos' => 'sometimes|nullable|array',
             'produtos.*.id_produto' => 'required|integer|exists:produtos,id',
             'produtos.*.quantidade' => 'required|numeric|min:0.001',
@@ -158,39 +156,20 @@ class ListaCompraController extends Controller
 
         $validatedData = $validator->validated();
 
-        DB::transaction(function () use ($validatedData, $listaCompra) {
-            $dadosLista = [];
-            if (isset($validatedData['nome_lista'])) $dadosLista['nome_lista'] = $validatedData['nome_lista'];
-            if (array_key_exists('descricao', $validatedData)) $dadosLista['descricao'] = $validatedData['descricao'];
-            if (isset($validatedData['id_lista_compra_status'])) $dadosLista['id_lista_compra_status'] = $validatedData['id_lista_compra_status'];
-
-            if (!empty($dadosLista)) {
-                $listaCompra->update($dadosLista);
-            }
+        DB::transaction(function () use ($validatedData, $listaCompra,$request) {
+            $listaCompra->update($request->only(['nome_lista', 'descricao', 'id_lista_compra_status']));
 
             if (array_key_exists('produtos', $validatedData)) {
-                $produtosParaSincronizar = [];
+                $listaCompra->itens()->delete();
                 if (!empty($validatedData['produtos'])) {
                     foreach ($validatedData['produtos'] as $produtoData) {
-                        $pivotData = [
-                            'quantidade' => $produtoData['quantidade'],
-                            'comprado' => $produtoData['comprado'] ?? false,
-                        ];
-                        // Apenas atualiza unidade_medida e observacao se forem enviados, caso contrário, mantém o valor existente.
-                        if (array_key_exists('unidade_medida', $produtoData)) {
-                            $pivotData['unidade_medida'] = $produtoData['unidade_medida'];
-                        }
-                        if (array_key_exists('observacao', $produtoData)) {
-                            $pivotData['observacao'] = $produtoData['observacao'];
-                        }
-                        $produtosParaSincronizar[$produtoData['id_produto']] = $pivotData;
+                        $listaCompra->itens()->create($produtoData);
                     }
                 }
-                $listaCompra->produtos()->sync($produtosParaSincronizar);
             }
         });
 
-        return response()->json($listaCompra->fresh()->load(['status:id,nome', 'produtos']));
+        return response()->json($listaCompra->fresh()->load(['status:id,nome', 'itens.produto']));
     }
 
     /**

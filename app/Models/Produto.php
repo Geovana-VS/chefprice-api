@@ -52,10 +52,8 @@ class Produto extends Model
         return $this->hasMany(ProdutoHistorico::class, 'id_produto');
     }
 
-        public function listasCompra(): BelongsToMany
+    public function nasListasDeCompra(): HasMany
     {
-        return $this->belongsToMany(ListaCompra::class, 'lista_compra_produtos', 'id_produto', 'id_lista_compra')
-                    ->withPivot(['quantidade', 'unidade_medida', 'observacao', 'comprado', 'created_at', 'updated_at'])
-                    ->withTimestamps();
+        return $this->hasMany(ListaCompraProduto::class, 'id_produto');
     }
 }

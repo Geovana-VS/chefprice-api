@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ListaCompra extends Model
 {
@@ -67,13 +68,8 @@ class ListaCompra extends Model
         return $this->belongsTo(ListaCompraStatus::class, 'id_lista_compra_status');
     }
 
-    /**
-     * The products that belong to the shopping list.
-     */
-    public function produtos(): BelongsToMany
+    public function itens(): HasMany
     {
-        return $this->belongsToMany(Produto::class, 'lista_compra_produtos', 'id_lista_compra', 'id_produto')
-                    ->withPivot(['quantidade', 'unidade_medida', 'observacao', 'comprado', 'created_at', 'updated_at'])
-                    ->withTimestamps();
+        return $this->hasMany(ListaCompraProduto::class, 'id_lista_compra');
     }
 }
