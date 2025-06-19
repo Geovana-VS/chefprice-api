@@ -11,9 +11,7 @@ use App\Models\ProdutoHistorico;
 use App\Models\Categoria;
 use App\Models\Receita;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http; // For Gemini (conceptual) or use Google SDK
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use GeminiAPI\Client;
@@ -22,180 +20,170 @@ use GeminiAPI\Resources\ModelName;
 use GeminiAPI\Resources\Parts\TextPart;
 use GeminiAPI\Resources\Parts\ImagePart;
 use GeminiAPI\GenerationConfig;
-use DateTime;
-
+use Exception;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 
 
 
-class ReceiptProcessingService
+class ProcessamentoImagemService
 {
-    protected ?int $userId;
-    protected ?int $recipeId;
-    protected Imagem $image;
+    protected ?int $idUsuario;
+    protected ?int $idReceita;
+    protected Imagem $imagem;
 
     /**
-     * Processes the uploaded receipt image.
+     * Processa a imagem recebida, extraindo os dados utilizando gemini.
+     * Este método é utilizado para processar imagens de cupons fiscais e extrair as informações estruturadas.
      *
-     * @param Imagem $image The image model.
-     * @param int $userId The ID of the user who uploaded the image.
-     * @param int|null $recipeId Optional recipe ID if type is 'Cupom Fiscal Receita'.
-     * @return array Result of the processing.
+     * @param Imagem $imagem O model da imagem.
+     * @param int $idUsuario O ID do user que fez upload da imagem.
+     * @param int|null $idReceita Opcional - ID da receita em caso de 'Cupom Fiscal Receita'.
+     * @return array Resultado do processamento.
      */
-    public function processReceipt(Imagem $image, int $userId, ?int $recipeId = null): array
+    public function processarCupom(Imagem $imagem, int $idUsuario, ?int $idReceita = null): array
     {
-        $this->image = $image;
-        $this->userId = $userId;
-        $this->recipeId = $recipeId;
+        $this->imagem = $imagem;
+        $this->idUsuario = $idUsuario;
+        $this->idReceita = $idReceita;
 
-        $extractedData = $this->extractDataFromImageViaGemini($image);
-        Log::info("Dados extraídos da imagem ID {$image->id}: " . json_encode($extractedData));
+        $dadosExtraidos = $this->ExtrairDadosGemini($imagem);
 
         if (!isset($item->barcode) || empty($item->barcode)) {
         }
-        if (!$extractedData || !isset($extractedData['items']) || !isset($extractedData['sale_date'])) {
-            Log::error("Failed to extract valid data from image ID: {$image->id}");
-            return ['success' => false, 'message' => 'Falha ao extrair dados da imagem.'];
+        if (!$dadosExtraidos || !isset($dadosExtraidos['items']) || !isset($dadosExtraidos['sale_date'])) {
+            Log::error("Falha ao extrair dados da imagem ID: {$imagem->id}");
+            return ['sucesso' => false, 'message' => 'Falha ao extrair dados da imagem.'];
         }
 
         try {
-            $saleDate = Carbon::createFromFormat('d/m/Y - H:i', $extractedData['sale_date'])->format('Y-m-d');
-            $saleDateTime = new DateTime($saleDate);
-        } catch (\Exception $e) {
-            Log::error("Invalid date format from Gemini for image ID: {$image->id}. Date: " . $extractedData['sale_date']);
-            return ['success' => false, 'message' => 'Formato de data inválido recebido do processamento da imagem.'];
+            $dataCupom = Carbon::createFromFormat('d/m/Y - H:i', $dadosExtraidos['sale_date'])->format('Y-m-d');
+        } catch (Exception $e) {
+            Log::error("Formato de data inválido recebido do processamento da imagem ID: {$imagem->id}. Date: " . $dadosExtraidos['sale_date']);
+            return ['sucesso' => false, 'message' => 'Formato de data inválido recebido do processamento da imagem.'];
         }
 
-        $processedItems = 0;
-        $skippedItems = 0;
-        $errors = [];
-        $createdHistoricos = [];
+        $itensProcessados = 0;
+        $itensIgnorados = 0;
+        $erros = [];
+        $historicosCriados = [];
 
         //variação percentual
         $percentualVariacao = 0.01;
-        
-        foreach ($extractedData['items'] as $item) {
+
+        //validação de valores numéricos extraídos
+        foreach ($dadosExtraidos['items'] as $item) {
             $precoCalculado = Helper::truncate_float($item->unit_price * $item->quantity - ($item->discount ?? 0.0),2);
             if ($precoCalculado !=  $item->total_price && abs($precoCalculado - $item->total_price) > $percentualVariacao * $item->total_price) {
                 Log::warning("Preço total calculado ({$precoCalculado}) difere do preço total extraído ({$item->total_price}) para o item: " . json_encode($item));
                 $item->total_price = $precoCalculado;
             }
         }
-        $recipeProductIds = null;
-        if ($this->recipeId) {
-            $recipe = Receita::with('ingredientes')->find($this->recipeId);
-            if ($recipe) {
-                $recipeProductIds = $recipe->ingredientes->pluck('id_produto')->unique()->toArray();
+
+        //verificação se o produto pertence à receita, se uma receita foi especificada
+        $idProdutoReceita = null;
+        if ($this->idReceita) {
+            $receita = Receita::with('ingredientes')->find($this->idReceita);
+            if ($receita) {
+                $idProdutoReceita = $receita->ingredientes->pluck('id_produto')->unique()->toArray();
             } else {
-                Log::warning("Recipe ID {$this->recipeId} not found for receipt processing of image ID {$image->id}.");
-                // Decide if to proceed as a generic list or fail
+                Log::warning("Receita com ID {$this->idReceita} não encontrada para processamento da imagem com ID {$imagem->id}.");
             }
         }
 
         DB::beginTransaction();
         try {
-            foreach ($extractedData['items'] as $itemData) {
-                $produto = $this->findProdutoAndCreateProdutoHistorico($itemData, $saleDateTime);
+            foreach ($dadosExtraidos['items'] as $item) {
+                $produto = $this->indexOrStoreProduto($item);
 
-                if (!isset($itemData->barcode) || empty($itemData->barcode)) {
-                    Log::warning("Item sem código de barras encontrado: " . json_encode($itemData));
-                    $errors[] = "Item sem código de barras encontrado: " . json_encode($itemData);
-                    $skippedItems++;
+                if (!isset($item->barcode) || empty($item->barcode)) {
+                    Log::warning("Item sem código de barras encontrado: " . json_encode($item));
+                    $erros[] = "Item sem código de barras encontrado: " . json_encode($item);
+                    $itensIgnorados++;
                     continue;
                 }
 
                 if (!$produto) {
-                    Log::warning("Produto não encontrado ou criado para o item: " . ($itemData->name ?? $itemData->barcode) . " na imagem ID {$image->id}");
-                    $errors[] = "Produto não encontrado/criado para: " . ($itemData->name ?? $itemData->barcode);
-                    $skippedItems++;
+                    Log::warning("Produto não encontrado ou criado para o item: " . ($item->name ?? $item->barcode) . " na imagem ID {$imagem->id}");
+                    $erros[] = "Produto não encontrado/criado para: " . ($item->name ?? $item->barcode);
+                    $itensIgnorados++;
                     continue;
                 }
 
-                if ($recipeProductIds !== null && !in_array($produto->id, $recipeProductIds)) {
-                    Log::info("Produto {$produto->nome} (ID: {$produto->id}) do cupom (Imagem ID: {$image->id}) não pertence à receita ID {$this->recipeId}. Pulando.");
-                    $skippedItems++;
+                if ($idProdutoReceita !== null && !in_array($produto->id, $idProdutoReceita)) {
+                    Log::info("Produto {$produto->nome} (ID: {$produto->id}) do cupom (Imagem ID: {$imagem->id}) não pertence à receita ID {$this->idReceita}. Pulando.");
+                    $itensIgnorados++;
                     continue;
                 }
 
-                $quantidade = (float)str_replace(',', '.', $itemData->quantity);
-                $precoUnitario = (float)str_replace(',', '.', $itemData->unit_price);
-                $desconto = isset($itemData->discount) ? (float)str_replace(',', '.', $itemData->discount) : 0.0;
+                $quantidade = (float)str_replace(',', '.', $item->quantity);
+                $precoUnitario = (float)str_replace(',', '.', $item->unit_price);
+                $desconto = isset($item->discount) ? (float)str_replace(',', '.', $item->discount) : 0.0;
                 $precoTotalCalculado = ($quantidade * $precoUnitario) - $desconto;
 
                 $historico = ProdutoHistorico::create([
-                    'id_usuario' => $this->userId,
+                    'id_usuario' => $this->idUsuario,
                     'id_produto' => $produto->id,
                     'preco_unitario' => $precoUnitario,
                     'quantidade' => $quantidade,
                     'preco_total' => $precoTotalCalculado,
-                    'data_compra' => $saleDate,
+                    'data_compra' => $dataCupom,
                     'desconto' => $desconto,
                 ]);
-                $createdHistoricos[] = $historico->id;
-                $processedItems++;
+                $historicosCriados[] = $historico->id;
+                $itensProcessados++;
             }
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            Log::error("Erro ao salvar históricos de produto para imagem ID {$image->id}: " . $e->getMessage());
-            return ['success' => false, 'message' => 'Erro ao salvar dados no banco.', 'errors' => [$e->getMessage()]];
+            Log::error("Erro ao salvar históricos de produto para imagem ID {$imagem->id}: " . $e->getMessage());
+            return ['sucesso' => false, 'message' => 'Erro ao salvar dados no banco.', 'errors' => [$e->getMessage()]];
         }
 
-        Log::info("Processamento do cupom concluído para imagem ID {$image->id}. Itens processados: {$processedItems}, Itens pulados: {$skippedItems}.");
+        Log::info("Processamento do cupom concluído para imagem ID {$imagem->id}. Itens processados: {$itensProcessados}, Itens ignorados: {$itensIgnorados}.");
         return [
-            'success' => true,
-            'message' => "Processamento do cupom concluído. {$processedItems} itens processados, {$skippedItems} itens pulados.",
-            'processed_count' => $processedItems,
-            'skipped_count' => $skippedItems,
-            'processing_errors' => $errors
+            'sucesso' => true,
+            'mensagem' => "Processamento do cupom concluído. {$itensProcessados} itens processados, {$itensIgnorados} itens ignorados.",
+            'itensProcessados' => $itensProcessados,
+            'itensIgnorados' => $itensIgnorados,
+            'errosProcessamento' => $erros
         ];
     }
 
     /**
-     * Finds an existing product or creates a new one.
+     * Encontra o produto pelo código de barras ou cria um novo produto se não existir.
+     * @param object $item Informações do item extraídas da imagem.
+     * @return Produto|null Retorna o produto encontrado ou criado, ou null se não for possível processar.
      */
-    protected function findProdutoAndCreateProdutoHistorico(Object $itemData, DateTime $sale_date): ?Produto
+    protected function indexOrStoreProduto(Object $item): ?Produto
     {
-        $barcode = $itemData->barcode ?? null;
+        $codigoDeBarras = $item->barcode ?? null;
 
-        if ($barcode) {
-            $produto = Produto::where('codigo_barra', $barcode)->first();
+        if ($codigoDeBarras) {
+            $produto = Produto::where('codigo_barra', $codigoDeBarras)->first();
             if (!$produto) {
                 $produtoController = new ProdutoController();
-                $openFoodFacts = new OpenFoodFactsController($produtoController);
+                $openFoodFactsController = new OpenFoodFactsController($produtoController);
                 try {
-                    $getProductByBarcode = $openFoodFacts->getProductByBarcode($barcode);
-                    $produto = Produto::where('codigo_barra', $barcode)->first();
-                } catch (\Exception $e) {
-                    Log::error("Erro ao buscar produto por código de barras {$barcode}: " . $e->getMessage());
+                    $openFoodFactsController->getProductByBarcode($codigoDeBarras);
+                    $produto = Produto::where('codigo_barra', $codigoDeBarras)->first();
+                } catch (Exception $e) {
+                    Log::error("Erro ao buscar produto por código de barras {$codigoDeBarras}: " . $e->getMessage());
                     return null;
                 }
             }
-
-            // if ($produto) {
-            //     $produtoHistorico = new ProdutoHistoricoController();
-            //     $produtoHistorico->store(new \Illuminate\Http\Request([
-            //         'id_usuario' => $this->userId,
-            //         'id_produto' => $produto->id,
-            //         'preco_unitario' => (float)str_replace(',', '.', $itemData->unit_price),
-            //         'quantidade' => (float)str_replace(',', '.', $itemData->quantity),
-            //         'data_compra' => $sale_date,
-            //         'desconto' => isset($itemData->discount) ? (float)str_replace(',', '.', $itemData->discount) : 0.0,
-            //         'preco_total' => isset($itemData->discount) ?
-            //             (float)str_replace(',', '.', $itemData->total_price) - (float)str_replace(',', '.', $itemData->discount) :
-            //             (float)str_replace(',', '.', $itemData->total_price)
-            //     ]));
-            //     return $produto;
-            // }
         }
         return $produto;
     }
 
     /**
-     * (Conceptual) Calls Gemini API to extract structured data from the image.
-     * Replace with actual Gemini SDK/API call.
+     * Extrai os dados da imagem utilizando a API Gemini.
+     * Este método é responsável por enviar a imagem para o Gemini e processar a resposta.
+     *
+     * @param Imagem $image O model da imagem a ser processada.
+     * @return array|null Retorna os dados extraídos em formato de array ou null em caso de erro.
      */
-    protected function extractDataFromImageViaGemini(Imagem $image): ?array
+    protected function ExtrairDadosGemini(Imagem $image): ?array
     {
         $imageUrl = $image->display_url;
         if (!$imageUrl) {
@@ -203,15 +191,12 @@ class ReceiptProcessingService
             return null;
         }
 
-        $apiKey = env('GEMINI_API_KEY'); // Ensure you have your Gemini API Key in .env
+        $apiKey = env('GEMINI_API_KEY');
         if (!$apiKey) {
             Log::error("GEMINI_API_KEY não configurada no .env");
             return null;
         }
 
-        // This is a placeholder for the Gemini API call structure.
-        // You'll need to use Google's official PHP SDK for Gemini (google-gemini-php).
-        // Example prompt:
         $prompt = <<<PROMPT
         ATENÇÃO: Você é um assistente especializado em analisar cupons fiscais brasileiros e extrair informações estruturadas de vendas.
         Você receberá uma imagem de um cupom fiscal brasileiro e deve extrair as informações de venda em formato JSON estruturado.
@@ -290,11 +275,10 @@ PROMPT;
 
             $path = Storage::disk('public')->path($image->caminho_storage);
 
-            // Convert string MIME type to MimeType enum
             $mimeType = MimeType::tryFrom($image->mime_type);
 
             if (!$mimeType) {
-                throw new \InvalidArgumentException("Unsupported MIME type: {$image->mime_type}");
+                throw new InvalidArgumentException("MIME type não suportado: {$image->mime_type}");
             }
 
             $response = $client->generativeModel(ModelName::GEMINI_2_0_FLASH_001)
@@ -306,14 +290,14 @@ PROMPT;
                         base64_encode(file_get_contents($path)),
                     ),
                 );
-            $encodedResponse = $response->text();
-            $encodedResponse = str_replace("```json", "", $encodedResponse);
-            $encodedResponse = str_replace("```", "", $encodedResponse);
+            $responseData = $response->text();
+            $responseData = str_replace("```json", "", $responseData);
+            $responseData = str_replace("```", "", $responseData);
 
-            $decodedResponse = json_decode($encodedResponse);
-            return $decodedResponse ? (array)$decodedResponse : null;
-        } catch (\Exception $e) {
-            Log::error("Gemini API call failed for image ID {$image->id}: " . $e->getMessage());
+            $responseJson = json_decode($responseData);
+            return $responseJson ? (array)$responseJson : null;
+        } catch (Exception $e) {
+            Log::error("Falha ao chamar a API durante o processamento da imagem com ID: {$image->id}: " . $e->getMessage());
             return null;
         }
     }

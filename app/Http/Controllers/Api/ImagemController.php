@@ -13,14 +13,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use App\Models\TipoImagem;
-use App\Services\ReceiptProcessingService;
+use App\Services\ProcessamentoImagemService;
+use Exception;
 
 class ImagemController extends Controller
 {
-    protected ReceiptProcessingService $receiptService;
-    public function __construct(ReceiptProcessingService $receiptService)
+    protected ProcessamentoImagemService $processamentoImagemService;
+    
+    public function __construct(ProcessamentoImagemService $processamentoImagemService)
     {
-        $this->receiptService = $receiptService;
+        $this->processamentoImagemService = $processamentoImagemService;
     }
 
     /**
@@ -76,7 +78,7 @@ class ImagemController extends Controller
 
         $validatedData = $validator->validated();
         $imagem = null;
-        $receiptProcessingResult = null;
+        $resultadoProcessamentoCupom = null;
 
         if ($request->hasFile('image_file') && $request->file('image_file')->isValid()) {
             $file = $request->file('image_file');
@@ -87,7 +89,7 @@ class ImagemController extends Controller
             $storedPath = $file->store('images', 'public');
 
             if (!$storedPath) {
-                return response()->json(['message' => 'Erro ao salvar o arquivo de imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+                return response()->json(['mensagem' => 'Erro ao salvar o arquivo de imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
 
             $publicUrl = Storage::disk('public')->url($storedPath);
@@ -124,32 +126,32 @@ class ImagemController extends Controller
                         if ($tipoNomeLower === 'cupom fiscal genérico' || $tipoNomeLower === 'cupom fiscal receita') {
                             if ($tipoNomeLower === 'cupom fiscal receita') {
                                 if (!empty($validatedData['receitas'])) {
-                                    $receiptProcessingResult = $this->receiptService->processReceipt($imagem, Auth::id(), $validatedData['receitas']);
+                                    $resultadoProcessamentoCupom = $this->processamentoImagemService->processarCupom($imagem, Auth::id(), $validatedData['receitas']);
                                 } else {
-                                    return response()->json(['message' => 'Para cupons fiscais do tipo "Cupom Fiscal Receita", deve haver exatamente uma receita associada.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+                                    return response()->json(['mensagem' => 'Para cupons fiscais do tipo "Cupom Fiscal Receita", deve haver exatamente uma receita associada.'], Response::HTTP_UNPROCESSABLE_ENTITY);
                                 }
                             } else if ($tipoNomeLower === 'cupom fiscal genérico') {
-                                $receiptProcessingResult = $this->receiptService->processReceipt($imagem, Auth::id());
+                                $resultadoProcessamentoCupom = $this->processamentoImagemService->processarCupom($imagem, Auth::id());
                             }
                         }
                     }
-                    return $receiptProcessingResult;
+                    return $resultadoProcessamentoCupom;
                 }
             ); // End transaction
 
             if ($imagem === null) {
-                return response()->json(['message' => 'Imagem não criada.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+                return response()->json(['mensagem' => 'Imagem não criada.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
             Log::info($transaction);
-            if ($tipoNomeLower === 'cupom fiscal receita' && $transaction['success'] != true) {
-                return response()->json(['message' => 'Imagem criada, mas não foi possível processar o recibo.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            if ($tipoNomeLower === 'cupom fiscal receita' && $transaction['sucesso'] != true) {
+                return response()->json(['mensagem' => 'Imagem criada, mas não foi possível processar o recibo.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
             return response()->json([
                 'imagem' => $imagem->load(['usuario', 'tipoImagem']),
-                'receiptProcessingResult' => $transaction,
+                'resultadoProcessamentoCupom' => $transaction,
             ], Response::HTTP_CREATED);
         } else {
-            return response()->json(['message' => 'Arquivo de imagem inválido ou não enviado.'], Response::HTTP_BAD_REQUEST);
+            return response()->json(['mensagem' => 'Arquivo de imagem inválido ou não enviado.'], Response::HTTP_BAD_REQUEST);
         }
     }
 
@@ -176,12 +178,12 @@ class ImagemController extends Controller
             // If image is not public, only the owner can view it.
             if (!$imagem->is_publico) {
                 if (!Auth::check() || Auth::id() !== $imagem->id_usuario) {
-                    return response()->json(['message' => 'Acesso não autorizado a esta imagem.'], Response::HTTP_FORBIDDEN);
+                    return response()->json(['mensagem' => 'Acesso não autorizado a esta imagem.'], Response::HTTP_FORBIDDEN);
                 }
             }
 
             if (!Storage::disk('public')->exists($imagem->caminho_storage)) {
-                return response()->json(['message' => 'Arquivo de imagem não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
+                return response()->json(['mensagem' => 'Arquivo de imagem não encontrado no servidor.'], Response::HTTP_NOT_FOUND);
             }
 
             // Get the full path to the file on the server
@@ -197,9 +199,9 @@ class ImagemController extends Controller
 
             return response()->file($path, $headers);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'Imagem não encontrada.'], Response::HTTP_NOT_FOUND);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Erro interno ao processar a requisição da imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['mensagem' => 'Imagem não encontrada.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
+            return response()->json(['mensagem' => 'Erro interno ao processar a requisição da imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -289,11 +291,11 @@ class ImagemController extends Controller
 
             $user = Auth::user();
             if (!$user) {
-                return response()->json(['message' => 'Não autenticado.'], Response::HTTP_UNAUTHORIZED);
+                return response()->json(['mensagem' => 'Não autenticado.'], Response::HTTP_UNAUTHORIZED);
             }
 
             if ($imagem->id_usuario !== $user->id && !$user->is_admin) {
-                return response()->json(['message' => 'Acesso não autorizado. Você não é o proprietário desta imagem nem um administrador.'], Response::HTTP_FORBIDDEN);
+                return response()->json(['mensagem' => 'Acesso não autorizado. Você não é o proprietário desta imagem nem um administrador.'], Response::HTTP_FORBIDDEN);
             }
 
             $caminhoStorage = $imagem->caminho_storage;
@@ -324,13 +326,13 @@ class ImagemController extends Controller
                 return response()->json(null, Response::HTTP_NO_CONTENT); // 204
             } else {
                 Log::error("Falha ao deletar o registro da Imagem ID {$idImagem} do banco de dados.");
-                return response()->json(['message' => 'A imagem não pôde ser deletada do banco de dados.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+                return response()->json(['mensagem' => 'A imagem não pôde ser deletada do banco de dados.'], Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'Imagem com ID ' . $idImagem . ' não encontrada.'], Response::HTTP_NOT_FOUND);
-        } catch (\Exception $e) {
+            return response()->json(['mensagem' => 'Imagem com ID ' . $idImagem . ' não encontrada.'], Response::HTTP_NOT_FOUND);
+        } catch (Exception $e) {
             Log::error("Erro ao tentar deletar imagem ID {$idImagem}: " . $e->getMessage());
-            return response()->json(['message' => 'Erro interno ao processar a requisição para deletar a imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json(['mensagem' => 'Erro interno ao processar a requisição para deletar a imagem.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }
