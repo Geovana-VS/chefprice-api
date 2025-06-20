@@ -17,6 +17,7 @@ class ProdutosSeeder extends Seeder
             'quantidade' => 1,
             'unidade_medida' => 'pct',
             'descricao' => 'Papel Higiênico Max Pure Folha Dupla 40 rolos 30M',
+            'preco_padrao' => 29.90,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07891024134610',
@@ -25,6 +26,7 @@ class ProdutosSeeder extends Seeder
             'quantidade' => 1,
             'unidade_medida' => 'un',
             'descricao' => 'Creme Dental Colgate Máxima Proteção Anticáries 180G',
+            'preco_padrao' => 5.99,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07891164166540',
@@ -33,6 +35,7 @@ class ProdutosSeeder extends Seeder
             'quantidade' => 1,
             'unidade_medida' => 'pct',
             'descricao' => 'Linguiça Calabresa Alegra 2,5kg',
+            'preco_padrao' => 29.90,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07894904204489',
@@ -41,6 +44,7 @@ class ProdutosSeeder extends Seeder
             'quantidade' => 1,
             'unidade_medida' => 'pct',
             'descricao' => 'Seleta Mista Seara Nature 1,05kg',
+            'preco_padrao' => 19.90,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07897153001335',
@@ -49,6 +53,7 @@ class ProdutosSeeder extends Seeder
             'quantidade' => 1,
             'unidade_medida' => 'un',
             'descricao' => 'Manteira Frizzo Com Sal 200g',
+            'preco_padrao' => 6.99,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07891350034646',

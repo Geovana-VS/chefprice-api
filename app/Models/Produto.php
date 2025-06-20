@@ -24,11 +24,13 @@ class Produto extends Model
         'quantidade',
         'unidade_medida',
         'descricao',
+        'preco_padrao',
     ];
 
     protected $casts = [
         'id_categoria' => 'integer',
         'quantidade' => 'decimal:3',
+        'preco_padrao' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

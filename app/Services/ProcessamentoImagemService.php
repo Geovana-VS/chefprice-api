@@ -49,8 +49,6 @@ class ProcessamentoImagemService
 
         $dadosExtraidos = $this->ExtrairDadosGemini($imagem);
 
-        if (!isset($item->barcode) || empty($item->barcode)) {
-        }
         if (!$dadosExtraidos || !isset($dadosExtraidos['items']) || !isset($dadosExtraidos['sale_date'])) {
             Log::error("Falha ao extrair dados da imagem ID: {$imagem->id}");
             return ['sucesso' => false, 'message' => 'Falha ao extrair dados da imagem.'];

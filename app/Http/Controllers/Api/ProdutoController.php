@@ -36,8 +36,9 @@ class ProdutoController extends Controller
             'id_categoria.required' => 'A categoria é obrigatória.',
             'id_categoria.exists' => 'A categoria selecionada é inválida.',
             'unidade_medida.max' => 'A unidade de medida não pode ter mais que :max caracteres.',
+            'preco_padrao.numeric' => 'O preço padrão deve ser um valor numérico.',
             'imagens.array' => 'As imagens devem ser um array.',
-            'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.',
+            'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.'
         ];
 
         $rules = [
@@ -45,6 +46,7 @@ class ProdutoController extends Controller
             'nome' => 'required|string|max:200',
             'id_categoria' => 'required|integer|exists:categorias,id',
             'unidade_medida' => 'nullable|string|max:50',
+            'preco_padrao' => 'nullable|numeric|min:0',
             'imagens' => 'nullable|array',
             'imagens.*' => 'integer|exists:imagens,id',
         ];
@@ -65,6 +67,7 @@ class ProdutoController extends Controller
                 'id_categoria' => $validatedData['id_categoria'],
                 'codigo_barra' => $validatedData['codigo_barra'] ?? null,
                 'unidade_medida' => $validatedData['unidade_medida'] ?? null,
+                'preco_padrao' => $validatedData['preco_padrao'] ?? null,
             ];
 
             $produto = Produto::create($produtoData);
@@ -96,6 +99,7 @@ class ProdutoController extends Controller
             'id_categoria.required' => 'A categoria é obrigatória.',
             'id_categoria.exists' => 'A categoria selecionada é inválida.',
             'unidade_medida.max' => 'A unidade de medida não pode ter mais que :max caracteres.',
+            'preco_padrao.numeric' => 'O preço padrão deve ser um valor numérico.',
             'imagens.array' => 'As imagens devem ser um array.',
             'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.',
         ];
@@ -105,6 +109,7 @@ class ProdutoController extends Controller
             'nome' => 'sometimes|required|string|max:200',
             'id_categoria' => 'sometimes|required|integer|exists:categorias,id',
             'unidade_medida' => 'sometimes|nullable|string|max:50',
+            'preco_padrao' => 'nullable|numeric|min:0',
             'imagens' => 'sometimes|nullable|array',
             'imagens.*' => 'integer|exists:imagens,id',
         ];
@@ -123,6 +128,7 @@ class ProdutoController extends Controller
             if (array_key_exists('id_categoria', $validatedData)) $produtoData['id_categoria'] = $validatedData['id_categoria'];
             if (array_key_exists('codigo_barra', $validatedData)) $produtoData['codigo_barra'] = $validatedData['codigo_barra'];
             if (array_key_exists('unidade_medida', $validatedData)) $produtoData['unidade_medida'] = $validatedData['unidade_medida'];
+            if (array_key_exists('preco_padrao', $validatedData)) $produtoData['preco_padrao'] = $validatedData['preco_padrao'];
 
             if (!empty($produtoData)) {
                 $produto->update($produtoData);
