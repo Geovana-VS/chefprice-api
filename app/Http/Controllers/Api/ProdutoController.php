@@ -266,4 +266,37 @@ class ProdutoController extends Controller
 
         return $this->storeOrUpdateOpenFoodFacts($productData);
     }
+
+    public function atualizarPrecoPadrao()
+    {
+        $produtos = Produto::with('historico')->get();
+        $i = 0;
+        $erros = [];
+
+        foreach ($produtos as $produto) {
+            if ($produto->historico->isNotEmpty()) {
+                $averagePrice = $produto->historico->avg('preco_unitario');
+
+                try {
+                    $produto->update(['preco_padrao' => $averagePrice]);
+                    $i++;
+                } catch (Exception $e) {
+                    $erros[] = "Não foi possivel atualizar o produto com ID: {$produto->id}. Erro: {$e->getMessage()}";
+                }
+            }
+        }
+
+        if (!empty($erros)) {
+            return response()->json([
+                'mensagem' => 'Atualização completa com erros.',
+                'produtos_atualizados' => $i,
+                'erros' => $erros,
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json([
+            'mensagem' => 'Atualização completa sem erros.',
+            'produtos_atualizados' => $i,
+        ]);
+    }
 }

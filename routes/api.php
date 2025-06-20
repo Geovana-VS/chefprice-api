@@ -68,14 +68,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         Route::apiResource('tipo-imagens', TipoImagemController::class)->except(['index', 'show']);
         Route::apiResource('produtos', ProdutoController::class);
+        Route::post('/produtos/atualizar-preco', [ProdutoController::class, 'atualizarPrecoPadrao'])->name('produtos.atualizar-preco');
         Route::apiResource('categorias', CategoriaController::class);
         Route::apiResource('receita-tags', ReceitaTagController::class);
         Route::put('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'update'])->name('produto-historicos.update');
         Route::delete('/produto-historicos/{produto_historico}', [ProdutoHistoricoController::class, 'destroy'])->name('produto-historicos.destroy');
         Route::apiResource('lista-compra-status', ListaCompraStatusController::class)->except(['index', 'show']);
         Route::prefix('openfoodfacts')->name('openfoodfacts.')->group(function () {
-            Route::get('/product/{barcode}', [OpenFoodFactsController::class, 'getProductByBarcode'])->name('product.barcode');
-            Route::get('/search', [OpenFoodFactsController::class, 'searchProducts'])->name('search');
+        Route::get('/product/{barcode}', [OpenFoodFactsController::class, 'getProductByBarcode'])->name('product.barcode');
+        Route::get('/search', [OpenFoodFactsController::class, 'searchProducts'])->name('search');
         });
     }); // End admin middleware group
 
