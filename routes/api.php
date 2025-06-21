@@ -58,6 +58,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Produto Historicos: Everyone can view/create, only admins can update/delete
     Route::apiResource('produto-historicos', ProdutoHistoricoController::class)->except(['update', 'destroy']);
+    Route::get('/preco/{idProduto}', [ProdutoHistoricoController::class, 'getHistoricoPreco'])
+        ->name('produto-historicos.getHistoricoPreco');
 
     Route::apiResource('lista-compra-status', ListaCompraStatusController::class)->only(['index', 'show']);
     Route::apiResource('listas-compra', ListaCompraController::class);

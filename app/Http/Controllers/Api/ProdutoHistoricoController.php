@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Produto;
 use App\Models\ProdutoHistorico;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -70,5 +71,18 @@ class ProdutoHistoricoController extends Controller
     public function destroy(ProdutoHistorico $produtoHistorico)
     {
         // Não é recomendado deletar o histórico diretamente.
+    }
+
+    public function getHistoricoPreco($idProduto)
+    {
+        $preco = ProdutoHistorico::where('id_produto', $idProduto)
+        ->orderBy('data_compra', 'desc')
+        ->first(['preco_unitario']);
+
+        if (!$preco) {
+            $preco = Produto::where('id', $idProduto)->first(['preco_padrao as preco_unitario']);
+        }
+
+        return response()->json($preco);
     }
 }
