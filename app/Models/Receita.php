@@ -22,6 +22,8 @@ class Receita extends Model
         'rendimento',
         'tempo_preparo',
         'is_public',
+        'custos_adicionais',
+        'lucro_esperado'
     ];
 
     protected $casts = [
@@ -29,6 +31,8 @@ class Receita extends Model
         'is_public' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'custos_adicionais' => 'decimal:2',
+        'lucro_esperado' => 'decimal:2'
     ];
 
     // Relationship: Recipe belongs to a User (Creator)

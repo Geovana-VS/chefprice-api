@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 
 class ReceitaController extends Controller
 {
@@ -53,6 +54,8 @@ class ReceitaController extends Controller
             'ingredientes.*.quantidade.required' => 'A quantidade é obrigatória para todos os ingredientes.',
             'ingredientes.*.quantidade.numeric' => 'A quantidade deve ser um número.',
             'ingredientes.*.unidade.required' => 'A unidade é obrigatória para todos os ingredientes.',
+            'custos_adicionais' => 'O custo adicional deve ser um número.',
+            'lucro_esperado' => 'O lucro esperado deve ser um número.'
         ];
 
         $rules = [
@@ -60,6 +63,8 @@ class ReceitaController extends Controller
             'descricao' => 'nullable|string',
             'rendimento' => 'nullable|string|max:100',
             'tempo_preparo' => 'nullable|string|max:100',
+            'custos_adicionais' => 'nullable|numeric|min:0',
+            'lucro_esperado' => 'nullable|numeric|min:0',
 
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:receita_tags,id',
@@ -94,6 +99,8 @@ class ReceitaController extends Controller
                 'descricao' => $validatedData['descricao'] ?? null,
                 'rendimento' => $validatedData['rendimento'] ?? null,
                 'tempo_preparo' => $validatedData['tempo_preparo'] ?? null,
+                'custos_adicionais' => $validatedData['custos_adicionais'] ?? 0,
+                'lucro_esperado' => $validatedData['lucro_esperado'] ?? 0,
             ];
             // Cria a receita
             $receita = Receita::create($receitaData);
@@ -192,6 +199,8 @@ class ReceitaController extends Controller
             'ingredientes.*.quantidade.required' => 'A quantidade é obrigatória para todos os ingredientes.',
             'ingredientes.*.quantidade.numeric' => 'A quantidade deve ser um número.',
             'ingredientes.*.unidade.required' => 'A unidade é obrigatória para todos os ingredientes.',
+            'custos_adicionais' => 'O custo adicional deve ser um número.',
+            'lucro_esperado' => 'O lucro esperado deve ser um número.'
         ];
 
         $rules = [
@@ -199,6 +208,8 @@ class ReceitaController extends Controller
             'descricao' => 'sometimes|nullable|string',
             'rendimento' => 'sometimes|nullable|string|max:100',
             'tempo_preparo' => 'sometimes|nullable|string|max:100',
+            'custos_adicionais' => 'nullable|numeric|min:0',
+            'lucro_esperado' => 'nullable|numeric|min:0',
             'tags' => 'sometimes|nullable|array',
             'tags.*' => 'integer|exists:receita_tags,id',
             'imagens' => 'sometimes|nullable|array',
@@ -232,6 +243,8 @@ class ReceitaController extends Controller
             if (array_key_exists('rendimento', $validatedData)) $receitaData['rendimento'] = $validatedData['rendimento'];
             if (array_key_exists('tempo_preparo', $validatedData)) $receitaData['tempo_preparo'] = $validatedData['tempo_preparo'];
             if (array_key_exists('is_public', $validatedData)) $receitaData['is_public'] = $validatedData['is_public'];
+            if (array_key_exists('custos_adicionais', $validatedData)) $receitaData['custos_adicionais'] = $validatedData['custos_adicionais'];
+            if (array_key_exists('lucro_esperado', $validatedData)) $receitaData['lucro_esperado'] = $validatedData['lucro_esperado'];
 
             if (!empty($receitaData)) {
                 $receita->update($receitaData);
@@ -358,7 +371,7 @@ class ReceitaController extends Controller
             return response()->json(['message' => 'Receita original não encontrada.'], 404);
         } catch (\Exception $e) {
             // Log do erro para depuração
-            \Log::error('Erro ao clonar receita: ' . $e->getMessage());
+            Log::error('Erro ao clonar receita: ' . $e->getMessage());
             return response()->json(['message' => 'Ocorreu um erro ao clonar a receita.'], 500); // Internal Server Error
         }
     }
