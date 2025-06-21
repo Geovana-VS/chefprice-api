@@ -76,7 +76,7 @@ class ProdutoHistoricoController extends Controller
     public function getHistoricoPreco($idProduto)
     {
         $preco = ProdutoHistorico::where('id_produto', $idProduto)
-        ->orderBy('data_compra', 'desc')
+        ->orderBy('created_at', 'desc')
         ->first(['preco_unitario']);
 
         if (!$preco) {
