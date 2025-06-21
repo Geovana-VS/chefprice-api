@@ -38,7 +38,11 @@ class ProdutoController extends Controller
             'unidade_medida.max' => 'A unidade de medida não pode ter mais que :max caracteres.',
             'preco_padrao.numeric' => 'O preço padrão deve ser um valor numérico.',
             'imagens.array' => 'As imagens devem ser um array.',
-            'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.'
+            'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.',
+            'quantidade.numeric' => 'A quantidade deve ser um valor numérico.',
+            'quantidade.min' => 'A quantidade não pode ser negativa.',
+            'descricao.max' => 'A descrição não pode ter mais que :max caracteres.',
+            'descricao.string' => 'A descrição deve ser uma string.',
         ];
 
         $rules = [
@@ -49,6 +53,8 @@ class ProdutoController extends Controller
             'preco_padrao' => 'nullable|numeric|min:0',
             'imagens' => 'nullable|array',
             'imagens.*' => 'integer|exists:imagens,id',
+            'quantidade' => 'nullable|numeric|min:0',
+            'descricao' => 'nullable|string|max:500',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -68,6 +74,8 @@ class ProdutoController extends Controller
                 'codigo_barra' => $validatedData['codigo_barra'] ?? null,
                 'unidade_medida' => $validatedData['unidade_medida'] ?? null,
                 'preco_padrao' => $validatedData['preco_padrao'] ?? null,
+                'quantidade' => $validatedData['quantidade'] ?? null,
+                'descricao' => $validatedData['descricao'] ?? null,
             ];
 
             $produto = Produto::create($produtoData);
