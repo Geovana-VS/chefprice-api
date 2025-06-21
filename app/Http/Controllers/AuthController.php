@@ -97,4 +97,37 @@ class AuthController extends Controller
 
         return response()->json($users);
     }
+
+    public function grantAdmin(Request $request, $id)
+    {
+        // Busca o usuário pelo ID
+        $user = User::findOrFail($id);
+
+        // Verifica se o usuário já é admin
+        if ($user->is_admin) {
+            return response()->json(['message' => 'Usuário já é um administrador.'], 400);
+        }
+
+        // Concede privilégios de administrador
+        $user->is_admin = true;
+        $user->save();
+
+        return response()->json(['message' => 'Usuário promovido a administrador com sucesso.']);
+    }
+    public function revokeAdmin(Request $request, $id)
+    {
+        // Busca o usuário pelo ID
+        $user = User::findOrFail($id);
+
+        // Verifica se o usuário não é admin
+        if (!$user->is_admin) {
+            return response()->json(['message' => 'Usuário não é um administrador.'], 400);
+        }
+
+        // Revoga privilégios de administrador
+        $user->is_admin = false;
+        $user->save();
+
+        return response()->json(['message' => 'Privilégios de administrador revogados com sucesso.']);
+    }
 }
