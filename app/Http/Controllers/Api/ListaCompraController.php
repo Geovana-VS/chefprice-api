@@ -232,7 +232,7 @@ class ListaCompraController extends Controller
         $dataCompra = $validatedData['data_compra_efetiva'] ?? now()->format('Y-m-d');
         $detalhesProdutosInput = $validatedData['detalhes_produtos'];
 
-        $listaCompra = ListaCompra::with('produtos')->findOrFail($listaCompraId); // Eager load products
+        $listaCompra = ListaCompra::with('itens')->findOrFail($listaCompraId); // Eager load products
 
         if ($listaCompra->id_usuario !== $user->id) {
             return response()->json(['message' => 'Acesso não autorizado a esta lista de compras.'], Response::HTTP_FORBIDDEN);
@@ -243,10 +243,10 @@ class ListaCompraController extends Controller
 
         // Create a map of products in the shopping list for efficient lookup and to get their quantities
         $produtosNaListaMap = [];
-        foreach ($listaCompra->produtos as $produtoNaLista) {
+        foreach ($listaCompra->itens as $produtoNaLista) {
             $produtosNaListaMap[$produtoNaLista->id] = [
-                'quantidade' => $produtoNaLista->pivot->quantidade, // Get quantity from pivot
-                'unidade_medida' => $produtoNaLista->pivot->unidade_medida
+                'quantidade' => $produtoNaLista->quantidade, // Get quantity from pivot
+                'unidade_medida' => $produtoNaLista->unidade_medida
             ];
         }
 
