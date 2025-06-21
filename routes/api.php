@@ -68,6 +68,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // --- Admin Routes ---
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
 
+        Route::get('usuarios', [AuthController::class, 'getUsers'])->name('getUsers');
         Route::apiResource('tipo-imagens', TipoImagemController::class)->except(['index', 'show']);
         Route::apiResource('produtos', ProdutoController::class);
         Route::post('/produtos/atualizar-preco', [ProdutoController::class, 'atualizarPrecoPadrao'])->name('produtos.atualizar-preco');

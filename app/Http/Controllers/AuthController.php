@@ -89,4 +89,12 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Usuário deslogado com sucesso.']);
     }
+
+    public function getUsers(Request $request)
+    {
+        // Busca todos os usuários com email verificado
+        $users = User::where('email_verified_at', '!=', NULL)->get();
+
+        return response()->json($users);
+    }
 }
