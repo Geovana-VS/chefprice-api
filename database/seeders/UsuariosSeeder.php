@@ -17,8 +17,11 @@ class UsuariosSeeder extends Seeder
         User::firstOrCreate([
             'name' => 'Thiago',
             'email' => 'tsdalessandro@gmail.com',
-            'password' => bcrypt('12345678')
+            'password' => bcrypt('12345678'),
+            'is_admin' => true,
         ]);
 
+        User::factory(10)->create()->each(function ($user) {
+        });
     }
 }
