@@ -127,14 +127,15 @@ class ImagemController extends Controller
                             if ($tipoNomeLower === 'cupom fiscal receita') {
                                 if (!empty($validatedData['receitas'])) {
                                     $resultadoProcessamentoCupom = $this->processamentoImagemService->processarCupom($imagem, Auth::id(), $validatedData['receitas']);
+                                    return $resultadoProcessamentoCupom;
                                 } else {
                                     return response()->json(['mensagem' => 'Para cupons fiscais do tipo "Cupom Fiscal Receita", deve haver exatamente uma receita associada.'], Response::HTTP_UNPROCESSABLE_ENTITY);
                                 }
                             } else if ($tipoNomeLower === 'cupom fiscal genérico') {
                                 $resultadoProcessamentoCupom = $this->processamentoImagemService->processarCupom($imagem, Auth::id());
+                                return $resultadoProcessamentoCupom;
                             }
                         }
-                        return $resultadoProcessamentoCupom;
                     }
                 }
             ); // End transaction

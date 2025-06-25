@@ -144,7 +144,8 @@ class ProcessamentoImagemService
             'mensagem' => "Processamento do cupom concluído. {$itensProcessados} itens processados, {$itensIgnorados} itens ignorados.",
             'itensProcessados' => $itensProcessados,
             'itensIgnorados' => $itensIgnorados,
-            'errosProcessamento' => $erros
+            'errosProcessamento' => $erros,
+            'idProdutosHistorico' => $historicosCriados
         ];
     }
 
