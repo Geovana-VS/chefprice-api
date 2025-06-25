@@ -134,8 +134,8 @@ class ImagemController extends Controller
                                 $resultadoProcessamentoCupom = $this->processamentoImagemService->processarCupom($imagem, Auth::id());
                             }
                         }
+                        return $resultadoProcessamentoCupom;
                     }
-                    return $resultadoProcessamentoCupom;
                 }
             ); // End transaction
 
