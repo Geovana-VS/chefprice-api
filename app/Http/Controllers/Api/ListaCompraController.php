@@ -244,7 +244,7 @@ class ListaCompraController extends Controller
         // Create a map of products in the shopping list for efficient lookup and to get their quantities
         $produtosNaListaMap = [];
         foreach ($listaCompra->itens as $produtoNaLista) {
-            $produtosNaListaMap[$produtoNaLista->id] = [
+            $produtosNaListaMap[$produtoNaLista->id_produto] = [
                 'quantidade' => $produtoNaLista->quantidade, // Get quantity from pivot
                 'unidade_medida' => $produtoNaLista->unidade_medida
             ];
