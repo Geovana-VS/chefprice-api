@@ -32,8 +32,8 @@ class ProdutosSeeder extends Seeder
             'codigo_barra' => '07891164166540',
             'nome' => 'Linguiça Calabresa Alegra',
             'id_categoria' => Categoria::where('nome', 'Carne suína')->first()->id,
-            'quantidade' => 1,
-            'unidade_medida' => 'pct',
+            'quantidade' => 2500,
+            'unidade_medida' => 'g',
             'descricao' => 'Linguiça Calabresa Alegra 2,5kg',
             'preco_padrao' => 29.90,
         ]);
@@ -41,8 +41,8 @@ class ProdutosSeeder extends Seeder
             'codigo_barra' => '07894904204489',
             'nome' => 'Seleta Mista Seara',
             'id_categoria' => Categoria::where('nome', 'Legumes')->first()->id,
-            'quantidade' => 1,
-            'unidade_medida' => 'pct',
+            'quantidade' => 1050,
+            'unidade_medida' => 'g',
             'descricao' => 'Seleta Mista Seara Nature 1,05kg',
             'preco_padrao' => 19.90,
         ]);
@@ -50,8 +50,8 @@ class ProdutosSeeder extends Seeder
             'codigo_barra' => '07897153001335',
             'nome' => 'Manteiga Frizzo',
             'id_categoria' => Categoria::where('nome', 'Laticínios')->first()->id,
-            'quantidade' => 1,
-            'unidade_medida' => 'un',
+            'quantidade' => 200,
+            'unidade_medida' => 'g',
             'descricao' => 'Manteira Frizzo Com Sal 200g',
             'preco_padrao' => 6.99,
         ]);
@@ -113,9 +113,10 @@ class ProdutosSeeder extends Seeder
             'codigo_barra' => '07891164004842',
             'nome' => 'Linguiça Toscana Aurora',
             'id_categoria' => Categoria::where('nome', 'Carne suína')->first()->id,
-            'quantidade' => 1,
-            'unidade_medida' => 'un',
+            'quantidade' => 700,
+            'unidade_medida' => 'g',
             'descricao' => 'Linguiça Toscana Aurora 700g',
+            'preco_padrao' => 19.90,
         ]);
         Produto::firstOrCreate([
             'codigo_barra' => '07506306214989',
@@ -125,5 +126,46 @@ class ProdutosSeeder extends Seeder
             'unidade_medida' => 'un',
             'descricao' => 'Antitranspirante Rexona Feminino Aerosol Clinical Classic 150ml',
         ]);
+
+        Produto::firstOrCreate([
+            'codigo_barra' => '07896096500110',
+            'nome' => 'Pão para Hambúrguer – Nino',
+            'id_categoria' => Categoria::where('nome', 'Pães e massas')->first()->id,
+            'quantidade' => 4,
+            'unidade_medida' => 'un',
+            'descricao' => 'Pão de Hambúrguer Nino 200g',
+            'preco_padrao' => 11.99,
+        ]);
+
+        Produto::firstOrCreate([
+            'codigo_barra' => '07893000084315',
+            'nome' => 'Queijo Mussarela Sadia Soltíssimo',
+            'id_categoria' => Categoria::where('nome', 'Laticínios')->first()->id,
+            'quantidade' => 200,
+            'unidade_medida' => 'g',
+            'descricao' => 'Queijo Mussarela Sadia Soltíssimo 500g',
+            'preco_padrao' => 13.90,
+        ]);
+
+        Produto::firstOrCreate([
+            'codigo_barra' => '07894000050720',
+            'nome' => 'Maionese Light Hellmanns',
+            'id_categoria' => Categoria::where('nome', 'Condimentos e temperos')->first()->id,
+            'quantidade' => 500,
+            'unidade_medida' => 'g',
+            'descricao' => 'Maionese Light Hellmanns 500g',
+            'preco_padrao' => 9.90,
+        ]);
+
+        Produto::firstOrCreate([
+            'codigo_barra' => '07894904002450',
+            'nome' => 'Hambúrguer Texas Burguer Seara',
+            'id_categoria' => Categoria::where('nome', 'Carne bovina')->first()->id,
+            'quantidade' => 12,
+            'unidade_medida' => 'un',
+            'descricao' => 'Hambúrguer Texas Burguer Seara 672g',
+            'preco_padrao' => 24.90,
+        ]);
+
     }
 }
