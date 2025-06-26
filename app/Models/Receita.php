@@ -23,7 +23,8 @@ class Receita extends Model
         'tempo_preparo',
         'is_public',
         'custos_adicionais',
-        'lucro_esperado'
+        'lucro_esperado',
+        'valor_recomendado'
     ];
 
     protected $casts = [
@@ -32,7 +33,9 @@ class Receita extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'custos_adicionais' => 'decimal:2',
-        'lucro_esperado' => 'decimal:2'
+        'lucro_esperado' => 'decimal:2',
+        'valor_recomendado' => 'decimal:2'
+
     ];
 
     // Relationship: Recipe belongs to a User (Creator)
