@@ -22,7 +22,13 @@ class ProdutoController extends Controller
 {
     public function index()
     {
-        $produtos = Produto::with(['categoria', 'imagens'])->latest()->get();
+        $categoriasExcluidas = config('chefprice.categorias_excluidas', []);
+        $idCategoriasExcluidas = Categoria::whereIn('nome', $categoriasExcluidas)->pluck('id');
+
+        $produtos = Produto::with(['categoria', 'imagens'])
+            ->whereNotIn('id_categoria', $idCategoriasExcluidas)
+            ->latest()
+            ->get();
         return response()->json($produtos);
     }
 

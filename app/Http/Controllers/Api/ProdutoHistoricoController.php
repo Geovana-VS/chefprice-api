@@ -8,12 +8,19 @@ use App\Models\ProdutoHistorico;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Response;
+use App\Models\Categoria;
 
 class ProdutoHistoricoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ProdutoHistorico::query();
+        $categoriasExcluidas = config('chefprice.categorias_excluidas', []);
+        $idCategoriasExcluidas = Categoria::whereIn('nome', $categoriasExcluidas)->pluck('id');
+
+        $query = ProdutoHistorico::query()->whereHas('produto', function ($q) use ($idCategoriasExcluidas) {
+            $q->whereNotIn('id_categoria', $idCategoriasExcluidas);
+        });
+
         if ($request->has('id_produto')) {
             $query->where('id_produto', $request->input('id_produto'));
         }
