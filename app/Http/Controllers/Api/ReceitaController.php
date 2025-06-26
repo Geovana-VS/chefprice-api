@@ -55,7 +55,8 @@ class ReceitaController extends Controller
             'ingredientes.*.quantidade.numeric' => 'A quantidade deve ser um número.',
             'ingredientes.*.unidade.required' => 'A unidade é obrigatória para todos os ingredientes.',
             'custos_adicionais' => 'O custo adicional deve ser um número.',
-            'lucro_esperado' => 'O lucro esperado deve ser um número.'
+            'lucro_esperado' => 'O lucro esperado deve ser um número.',
+            'valor_recomendado' => 'O valor recomendado deve ser um número.',
         ];
 
         $rules = [
@@ -65,6 +66,7 @@ class ReceitaController extends Controller
             'tempo_preparo' => 'nullable|string|max:100',
             'custos_adicionais' => 'nullable|numeric|min:0',
             'lucro_esperado' => 'nullable|numeric|min:0',
+            'valor_recomendado' => 'nullable|numeric|min:0',
 
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:receita_tags,id',
@@ -101,6 +103,7 @@ class ReceitaController extends Controller
                 'tempo_preparo' => $validatedData['tempo_preparo'] ?? null,
                 'custos_adicionais' => $validatedData['custos_adicionais'] ?? 0,
                 'lucro_esperado' => $validatedData['lucro_esperado'] ?? 0,
+                'valor_recomendado' => $validatedData['valor_recomendado'] ?? 0,
             ];
             // Cria a receita
             $receita = Receita::create($receitaData);
@@ -200,7 +203,8 @@ class ReceitaController extends Controller
             'ingredientes.*.quantidade.numeric' => 'A quantidade deve ser um número.',
             'ingredientes.*.unidade.required' => 'A unidade é obrigatória para todos os ingredientes.',
             'custos_adicionais' => 'O custo adicional deve ser um número.',
-            'lucro_esperado' => 'O lucro esperado deve ser um número.'
+            'lucro_esperado' => 'O lucro esperado deve ser um número.',
+            'valor_recomendado' => 'O valor recomendado deve ser um número.',
         ];
 
         $rules = [
@@ -210,6 +214,7 @@ class ReceitaController extends Controller
             'tempo_preparo' => 'sometimes|nullable|string|max:100',
             'custos_adicionais' => 'nullable|numeric|min:0',
             'lucro_esperado' => 'nullable|numeric|min:0',
+            'valor_recomendado' => 'nullable|numeric|min:0',
             'tags' => 'sometimes|nullable|array',
             'tags.*' => 'integer|exists:receita_tags,id',
             'imagens' => 'sometimes|nullable|array',
@@ -245,6 +250,7 @@ class ReceitaController extends Controller
             if (array_key_exists('is_public', $validatedData)) $receitaData['is_public'] = $validatedData['is_public'];
             if (array_key_exists('custos_adicionais', $validatedData)) $receitaData['custos_adicionais'] = $validatedData['custos_adicionais'];
             if (array_key_exists('lucro_esperado', $validatedData)) $receitaData['lucro_esperado'] = $validatedData['lucro_esperado'];
+            if (array_key_exists('valor_recomendado', $validatedData)) $receitaData['valor_recomendado'] = $validatedData['valor_recomendado'];
 
             if (!empty($receitaData)) {
                 $receita->update($receitaData);
