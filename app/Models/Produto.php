@@ -24,11 +24,13 @@ class Produto extends Model
         'quantidade',
         'unidade_medida',
         'descricao',
+        'preco_padrao',
     ];
 
     protected $casts = [
         'id_categoria' => 'integer',
         'quantidade' => 'decimal:3',
+        'preco_padrao' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -47,9 +49,13 @@ class Produto extends Model
         return $this->hasMany(IngredienteReceita::class, 'id_produto');
     }
 
-    // Relationship: Product has many History records
     public function historico(): HasMany
     {
         return $this->hasMany(ProdutoHistorico::class, 'id_produto');
+    }
+
+    public function nasListasDeCompra(): HasMany
+    {
+        return $this->hasMany(ListaCompraProduto::class, 'id_produto');
     }
 }

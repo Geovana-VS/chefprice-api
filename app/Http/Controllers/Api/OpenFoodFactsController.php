@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use OpenFoodFacts\Laravel\Facades\OpenFoodFacts;
+use OpenFoodFacts\Laravel\Facades\OpenBeautyFacts;
 use OpenFoodFacts\Exception\ProductNotFoundException;
 use Exception;
 use App\Http\Controllers\Api\ProdutoController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use GuzzleHttp\Client;
 
 class OpenFoodFactsController extends Controller
 {
@@ -46,7 +48,17 @@ class OpenFoodFactsController extends Controller
                 return response()->json(['message' => 'Código de barras inválido. Deve conter apenas dígitos.'], 400);
             }
 
+            $client = new Client([
+            'base_uri' => 'https://br.openfoodfacts.org/api/v0/', // Or your specific endpoint
+            'timeout'  => 10.0, // Timeout for the entire request in seconds
+            'connect_timeout' => 5.0, // Timeout for attempting to connect to the server
+            ]);
+
+            // $response = $client->request('GET', "product/{$barcode}.json");
+            // $productData = json_decode($response->getBody()->getContents(), true);
+
             $productData = OpenFoodFacts::barcode($barcode);
+            // $productData = OpenBeautyFacts::barcode($barcode);
 
             if (is_null($productData)) {
                 return response()->json(['message' => 'Produto não encontrado na base de dados Open Food Facts.'], 404);

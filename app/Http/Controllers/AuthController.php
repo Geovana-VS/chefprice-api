@@ -20,7 +20,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:200'],
             'email' => ['required', 'string', 'email', 'max:100', 'unique:users,email'],
-            'password' => ['required', 'string', 'confirmed', Password::min(8)],
+            'password' => ['required', 'string', 'confirmed', Password::min(6)],
         ]);
 
         if ($validator->fails()) {
@@ -88,5 +88,46 @@ class AuthController extends Controller
         $user->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Usuário deslogado com sucesso.']);
+    }
+
+    public function getUsers(Request $request)
+    {
+        // Busca todos os usuários com email verificado
+        $users = User::where('email_verified_at', '!=', NULL)->get();
+
+        return response()->json($users);
+    }
+
+    public function grantAdmin(Request $request, $id)
+    {
+        // Busca o usuário pelo ID
+        $user = User::findOrFail($id);
+
+        // Verifica se o usuário já é admin
+        if ($user->is_admin) {
+            return response()->json(['message' => 'Usuário já é um administrador.'], 400);
+        }
+
+        // Concede privilégios de administrador
+        $user->is_admin = true;
+        $user->save();
+
+        return response()->json(['message' => 'Usuário promovido a administrador com sucesso.']);
+    }
+    public function revokeAdmin(Request $request, $id)
+    {
+        // Busca o usuário pelo ID
+        $user = User::findOrFail($id);
+
+        // Verifica se o usuário não é admin
+        if (!$user->is_admin) {
+            return response()->json(['message' => 'Usuário não é um administrador.'], 400);
+        }
+
+        // Revoga privilégios de administrador
+        $user->is_admin = false;
+        $user->save();
+
+        return response()->json(['message' => 'Privilégios de administrador revogados com sucesso.']);
     }
 }

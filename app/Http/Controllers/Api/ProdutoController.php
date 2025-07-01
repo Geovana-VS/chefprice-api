@@ -22,7 +22,13 @@ class ProdutoController extends Controller
 {
     public function index()
     {
-        $produtos = Produto::with(['categoria', 'imagens'])->latest()->get();
+        $categoriasExcluidas = config('chefprice.categorias_excluidas', []);
+        $idCategoriasExcluidas = Categoria::whereIn('nome', $categoriasExcluidas)->pluck('id');
+
+        $produtos = Produto::with(['categoria', 'imagens'])
+            ->whereNotIn('id_categoria', $idCategoriasExcluidas)
+            ->latest()
+            ->get();
         return response()->json($produtos);
     }
 
@@ -36,8 +42,13 @@ class ProdutoController extends Controller
             'id_categoria.required' => 'A categoria é obrigatória.',
             'id_categoria.exists' => 'A categoria selecionada é inválida.',
             'unidade_medida.max' => 'A unidade de medida não pode ter mais que :max caracteres.',
+            'preco_padrao.numeric' => 'O preço padrão deve ser um valor numérico.',
             'imagens.array' => 'As imagens devem ser um array.',
             'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.',
+            'quantidade.numeric' => 'A quantidade deve ser um valor numérico.',
+            'quantidade.min' => 'A quantidade não pode ser negativa.',
+            'descricao.max' => 'A descrição não pode ter mais que :max caracteres.',
+            'descricao.string' => 'A descrição deve ser uma string.',
         ];
 
         $rules = [
@@ -45,8 +56,11 @@ class ProdutoController extends Controller
             'nome' => 'required|string|max:200',
             'id_categoria' => 'required|integer|exists:categorias,id',
             'unidade_medida' => 'nullable|string|max:50',
+            'preco_padrao' => 'nullable|numeric|min:0',
             'imagens' => 'nullable|array',
             'imagens.*' => 'integer|exists:imagens,id',
+            'quantidade' => 'nullable|numeric|min:0',
+            'descricao' => 'nullable|string|max:500',
         ];
 
         $validator = Validator::make($request->all(), $rules, $messages);
@@ -65,6 +79,9 @@ class ProdutoController extends Controller
                 'id_categoria' => $validatedData['id_categoria'],
                 'codigo_barra' => $validatedData['codigo_barra'] ?? null,
                 'unidade_medida' => $validatedData['unidade_medida'] ?? null,
+                'preco_padrao' => $validatedData['preco_padrao'] ?? null,
+                'quantidade' => $validatedData['quantidade'] ?? null,
+                'descricao' => $validatedData['descricao'] ?? null,
             ];
 
             $produto = Produto::create($produtoData);
@@ -96,6 +113,7 @@ class ProdutoController extends Controller
             'id_categoria.required' => 'A categoria é obrigatória.',
             'id_categoria.exists' => 'A categoria selecionada é inválida.',
             'unidade_medida.max' => 'A unidade de medida não pode ter mais que :max caracteres.',
+            'preco_padrao.numeric' => 'O preço padrão deve ser um valor numérico.',
             'imagens.array' => 'As imagens devem ser um array.',
             'imagens.*.exists' => 'Uma ou mais imagens selecionadas são inválidas.',
         ];
@@ -105,6 +123,7 @@ class ProdutoController extends Controller
             'nome' => 'sometimes|required|string|max:200',
             'id_categoria' => 'sometimes|required|integer|exists:categorias,id',
             'unidade_medida' => 'sometimes|nullable|string|max:50',
+            'preco_padrao' => 'nullable|numeric|min:0',
             'imagens' => 'sometimes|nullable|array',
             'imagens.*' => 'integer|exists:imagens,id',
         ];
@@ -123,6 +142,7 @@ class ProdutoController extends Controller
             if (array_key_exists('id_categoria', $validatedData)) $produtoData['id_categoria'] = $validatedData['id_categoria'];
             if (array_key_exists('codigo_barra', $validatedData)) $produtoData['codigo_barra'] = $validatedData['codigo_barra'];
             if (array_key_exists('unidade_medida', $validatedData)) $produtoData['unidade_medida'] = $validatedData['unidade_medida'];
+            if (array_key_exists('preco_padrao', $validatedData)) $produtoData['preco_padrao'] = $validatedData['preco_padrao'];
 
             if (!empty($produtoData)) {
                 $produto->update($produtoData);
@@ -259,5 +279,38 @@ class ProdutoController extends Controller
         }
 
         return $this->storeOrUpdateOpenFoodFacts($productData);
+    }
+
+    public function atualizarPrecoPadrao()
+    {
+        $produtos = Produto::with('historico')->get();
+        $i = 0;
+        $erros = [];
+
+        foreach ($produtos as $produto) {
+            if ($produto->historico->isNotEmpty()) {
+                $averagePrice = $produto->historico->avg('preco_unitario');
+
+                try {
+                    $produto->update(['preco_padrao' => $averagePrice]);
+                    $i++;
+                } catch (Exception $e) {
+                    $erros[] = "Não foi possivel atualizar o produto com ID: {$produto->id}. Erro: {$e->getMessage()}";
+                }
+            }
+        }
+
+        if (!empty($erros)) {
+            return response()->json([
+                'mensagem' => 'Atualização completa com erros.',
+                'produtos_atualizados' => $i,
+                'erros' => $erros,
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return response()->json([
+            'mensagem' => 'Atualização completa sem erros.',
+            'produtos_atualizados' => $i,
+        ]);
     }
 }

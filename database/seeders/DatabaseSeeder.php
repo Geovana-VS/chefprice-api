@@ -13,11 +13,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $ListaCompraStatusSeeder = new ListaCompraStatusSeeder();
+        $ListaCompraStatusSeeder->run();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $TipoImagemSeeder = new TipoImagemSeeder();
+        $TipoImagemSeeder->run();
+
+        $CategoriasSeeder = new CategoriasSeeder();
+        $CategoriasSeeder->run();
+
+        $ProdutosSeeder = new ProdutosSeeder();
+        $ProdutosSeeder->run();
+
+        $UsuariosSeeder = new UsuariosSeeder();
+        $UsuariosSeeder->run();
+
+        $ReceitasTagsSeeder = new ReceitasTagsSeeder();
+        $ReceitasTagsSeeder->run();
     }
 }

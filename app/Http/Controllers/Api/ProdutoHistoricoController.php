@@ -3,16 +3,24 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Produto;
 use App\Models\ProdutoHistorico;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Response;
+use App\Models\Categoria;
 
 class ProdutoHistoricoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ProdutoHistorico::query();
+        $categoriasExcluidas = config('chefprice.categorias_excluidas', []);
+        $idCategoriasExcluidas = Categoria::whereIn('nome', $categoriasExcluidas)->pluck('id');
+
+        $query = ProdutoHistorico::query()->whereHas('produto', function ($q) use ($idCategoriasExcluidas) {
+            $q->whereNotIn('id_categoria', $idCategoriasExcluidas);
+        });
+
         if ($request->has('id_produto')) {
             $query->where('id_produto', $request->input('id_produto'));
         }
@@ -70,5 +78,18 @@ class ProdutoHistoricoController extends Controller
     public function destroy(ProdutoHistorico $produtoHistorico)
     {
         // Não é recomendado deletar o histórico diretamente.
+    }
+
+    public function getHistoricoPreco($idProduto)
+    {
+        $preco = ProdutoHistorico::where('id_produto', $idProduto)
+        ->orderBy('created_at', 'desc')
+        ->first(['preco_unitario']);
+
+        if (!$preco) {
+            $preco = Produto::where('id', $idProduto)->first(['preco_padrao as preco_unitario']);
+        }
+
+        return response()->json($preco);
     }
 }
